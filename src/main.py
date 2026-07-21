@@ -22,6 +22,15 @@ while choice != "2":
 
     if choice == "1":
         information = get_system_information()
-
+    
         for item, value in information.items():
             print(f"{item}: {value}")
+            
+    elif choice == "2":
+        print("Exiting the program...")
+        exit()
+        
+    else:
+        print("Invalid choice. Please choose 1 or 2.")
+        
+        
