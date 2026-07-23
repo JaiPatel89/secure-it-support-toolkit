@@ -1,3 +1,4 @@
+from firewall_status import get_firewall_status
 from system_info import get_system_information
 from network_tools import get_network_information
 
@@ -9,12 +10,13 @@ def display_menu():
 
     print("1. System Information")
     print("2. Network Information")
-    print("3. Exit")
+    print("3. Firewall Status")
+    print("4. Exit")
 
 
 choice = ""
 
-while choice != "3":
+while choice != "4":
 
     display_menu()
 
@@ -36,9 +38,11 @@ while choice != "3":
             for detail_name, detail_value in details.items():
                 print(f"{detail_name}: {detail_value}")
 
+    elif choice == "3":
+        information = get_firewall_status()
             
     
-    elif choice == "3":
+    elif choice == "4":
         print("Exiting the program...")
         exit()
         
