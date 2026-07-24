@@ -40,6 +40,9 @@ while choice != "4":
 
     elif choice == "3":
         information = get_firewall_status()
+
+        for item, value in information.items():
+            print(f"{item}: {value}")
             
     
     elif choice == "4":

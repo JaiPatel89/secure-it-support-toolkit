@@ -38,6 +38,29 @@ def get_firewall_status():
 
 
 
+    elif operating_system == "Linux":
+        result = subprocess.run(
+            ["ufw", "status"], 
+            capture_output=True, 
+            text=True
+        )
+
+        firewall_output = result.stdout
+
+
+        if "Status: active" in firewall_output:
+            return {
+                "Firewall":"Active"
+            }
+        else:
+            return {
+                "Firewall":"Inactive"
+            }
+
+
+    elif operating_system == "Darwin":
+        pass
+
 
 
     
