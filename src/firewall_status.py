@@ -57,11 +57,27 @@ def get_firewall_status():
                 "Firewall":"Inactive"
             }
 
+#macOS firewall status (requires testing on macOS)
 
     elif operating_system == "Darwin":
-        pass
+        result = subprocess.run(
+            ["/usr/libexec/ApplicationFirewall/socketfilterfw", "--getglobalstate"],
+            capture_output=True,
+            text=True
+
+        )
+
+        firewall_output = result.stdout + result.stderr
 
 
+        if "enabled" in firewall_output.lower():
+            return {
+                "Firewall":"Active"
+            }
+        else:
+            return {
+                "Firewall":"Inactive"
+            }
 
     
 
