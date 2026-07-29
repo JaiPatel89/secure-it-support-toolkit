@@ -1,6 +1,7 @@
 from firewall_status import get_firewall_status
 from system_info import get_system_information
 from network_tools import get_network_information
+from disk_usage import get_disk_usage
 
 
 def display_menu():
@@ -11,12 +12,13 @@ def display_menu():
     print("1. System Information")
     print("2. Network Information")
     print("3. Firewall Status")
-    print("4. Exit")
+    print("4. Disk Usage")
+    print("5. Exit")
 
 
 choice = ""
 
-while choice != "4":
+while choice != "5":
 
     display_menu()
 
@@ -46,10 +48,14 @@ while choice != "4":
             
     
     elif choice == "4":
+        information = get_disk_usage()
+        print(information)
+
+
+    elif choice == "5":
         print("Exiting the program...")
         exit()
         
     else:
-        print("Invalid choice. Please choose 1, 2 or 3.")
-        
+        print("Invalid choice. Please choose 1, 2, 3 or 4.")
         
