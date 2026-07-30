@@ -49,7 +49,16 @@ while choice != "5":
     
     elif choice == "4":
         information = get_disk_usage()
-        print(information)
+
+        print("\nDisk Usage Information:")
+        print("----------------------")
+
+        for index, drive in enumerate(information, start=1):
+            print(f"\nDrive {index}:")
+            print("----------")
+
+            for key, value in drive.items():
+                print(f"{key}: {value}")
 
 
     elif choice == "5":
