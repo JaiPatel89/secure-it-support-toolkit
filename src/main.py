@@ -2,6 +2,7 @@ from firewall_status import get_firewall_status
 from system_info import get_system_information
 from network_tools import get_network_information
 from disk_usage import get_disk_usage
+from process_monitor import get_processes
 
 
 def display_menu():
@@ -13,12 +14,13 @@ def display_menu():
     print("2. Network Information")
     print("3. Firewall Status")
     print("4. Disk Usage")
-    print("5. Exit")
+    print("5. Process Monitor")
+    print("6. Exit")
 
 
 choice = ""
 
-while choice != "5":
+while choice != "6":
 
     display_menu()
 
@@ -60,8 +62,23 @@ while choice != "5":
             for key, value in drive.items():
                 print(f"{key}: {value}")
 
-
     elif choice == "5":
+        information = get_processes()
+
+        print("\nTop 10 Processes by Memory Usage:")
+        print("----------------------------------")
+
+        for index, process in enumerate(information, start=1):
+
+            print(f"\nProcess {index}:")
+            print("-------------")
+
+            for key, value in process.items():
+                print(f"{key}: {value}")
+
+
+
+    elif choice == "6":
         print("Exiting the program...")
         exit()
         
