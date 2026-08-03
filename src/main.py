@@ -3,6 +3,7 @@ from system_info import get_system_information
 from network_tools import get_network_information
 from disk_usage import get_disk_usage
 from process_monitor import get_processes
+from network_diagnostics import run_network_diagnostics
 
 
 def display_menu():
@@ -15,12 +16,13 @@ def display_menu():
     print("3. Firewall Status")
     print("4. Disk Usage")
     print("5. Process Monitor")
-    print("6. Exit")
+    print("6. Network Diagnostics")
+    print("7. Exit")
 
 
 choice = ""
 
-while choice != "6":
+while choice != "7":
 
     display_menu()
 
@@ -76,12 +78,19 @@ while choice != "6":
             for key, value in process.items():
                 print(f"{key}: {value}")
 
-
-
     elif choice == "6":
+        information = run_network_diagnostics()
+
+        print("\nNetwork Diagnostics:")
+        print("-------------------------")
+
+        for item, value in information.items():
+            print(f"{item}: {value}")
+
+    elif choice == "7":
         print("Exiting the program...")
         exit()
         
     else:
-        print("Invalid choice. Please choose 1, 2, 3 or 4.")
+        print("Invalid choice. Please choose 1, 2, 3, 4, 5 or 6.")
         
