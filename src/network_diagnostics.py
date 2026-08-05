@@ -27,6 +27,52 @@ def run_network_diagnostics():
     if result.returncode == 0:
         network_information["Internet Connectivity"] = "Connected"
 
+        if operating_system == "Windows":
+
+            for line in result.stdout.splitlines():
+
+                if "Average" in line:
+
+                    latency = line.split("Average =")[-1].strip()
+
+                    network_information["Ping Latency"] = latency
+
+                    break
+
+            for line in result.stdout.splitlines():
+
+                if "Lost =" in line:
+
+                    packet_loss = line.split("(")[1].split(")")[0]
+
+                    network_information["Packet Loss"] = packet_loss
+
+                    break
+
+        
+        elif operating_system == "Linux":
+
+            for line in result.stdout.splitlines():
+
+                if "time=" in line:
+
+                    latency = line.split("time=")[1].split()[0]
+
+                    network_information["Ping Latency"] = f"{latency} ms"
+
+                    break
+
+            for line in result.stdout.splitlines():
+
+                if "packet loss" in line:
+
+                    packet_loss = line.split(",")[2].strip().replace(" packet loss", "")
+
+                    network_information["Packet Loss"] = packet_loss
+
+                    break
+
+
     else:
         network_information["Internet Connectivity"] = "Disconnected"
 
