@@ -33,9 +33,6 @@ def get_firewall_status():
             elif "State" in line:
                 firewall_status[current_profile] = line.split()[-1]
 
-        for profile, status in firewall_status.items():
-            print(f"{profile} Firewall: {status}")
-
 
 
     elif operating_system == "Linux":
@@ -79,6 +76,7 @@ def get_firewall_status():
                 "Firewall":"Inactive"
             }
 
-    
 
+    return firewall_status
+    
 

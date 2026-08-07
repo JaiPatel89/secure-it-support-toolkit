@@ -4,6 +4,10 @@ from network_tools import get_network_information
 from disk_usage import get_disk_usage
 from process_monitor import get_processes
 from network_diagnostics import run_network_diagnostics
+from report_generator import generate_report
+
+
+report_data = {}
 
 
 def display_menu():
@@ -17,12 +21,13 @@ def display_menu():
     print("4. Disk Usage")
     print("5. Process Monitor")
     print("6. Network Diagnostics")
-    print("7. Exit")
+    print("7. Export Diagnostic Report")
+    print("8. Exit")
 
 
 choice = ""
 
-while choice != "7":
+while choice != "8":
 
     display_menu()
 
@@ -31,11 +36,15 @@ while choice != "7":
     if choice == "1":
         information = get_system_information()
 
+        report_data["System Information"] = information
+
         for item, value in information.items():
             print(f"{item}: {value}")
 
     elif choice == "2":
         information = get_network_information()
+
+        report_data["Network Information"] = information
         
         for adapter, details in information.items():
             
@@ -47,12 +56,16 @@ while choice != "7":
     elif choice == "3":
         information = get_firewall_status()
 
+        report_data["Firewall Status"] = information
+
         for item, value in information.items():
             print(f"{item}: {value}")
             
     
     elif choice == "4":
         information = get_disk_usage()
+
+        report_data["Disk Usage"] = information
 
         print("\nDisk Usage Information:")
         print("----------------------")
@@ -66,6 +79,8 @@ while choice != "7":
 
     elif choice == "5":
         information = get_processes()
+
+        report_data["Process Monitor"] = information
 
         print("\nTop 10 Processes by Memory Usage:")
         print("----------------------------------")
@@ -81,13 +96,30 @@ while choice != "7":
     elif choice == "6":
         information = run_network_diagnostics()
 
+        report_data["Network Diagnostics"] = information
+
         print("\nNetwork Diagnostics:")
         print("-------------------------")
 
         for item, value in information.items():
             print(f"{item}: {value}")
 
+
     elif choice == "7":
+
+        if not report_data:
+
+            print("No diagnostic information available.")
+            print("Please run at least one diagnostic option first.")
+
+        else:
+
+            generate_report(report_data)
+
+            print("Diagnostic report generated successfully.")
+    
+
+    elif choice == "8":
         print("Exiting the program...")
         exit()
         

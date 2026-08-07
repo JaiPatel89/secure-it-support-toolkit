@@ -20,7 +20,7 @@ def get_processes():
                 "Name": process.info['name'],
                 "PID": process.info['pid'],
                 "Status": process.info['status'],
-                "CPU Usage (%)": cpu_percent,
+                "CPU Usage": f"{cpu_percent}%",
                 "Memory Usage (MB)": memory_mb
             })
 
