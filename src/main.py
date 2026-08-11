@@ -5,6 +5,7 @@ from disk_usage import get_disk_usage
 from process_monitor import get_processes
 from network_diagnostics import run_network_diagnostics
 from security_checks import run_security_checks
+from service_status import get_service_status
 from report_generator import generate_report
 
 
@@ -24,13 +25,14 @@ def display_menu():
     print("5. Process Monitor")
     print("6. Network Diagnostics")
     print("7. Security Checks")
-    print("8. Export Diagnostic Report")
-    print("9. Exit")
+    print("8. Service Status")
+    print("9. Export Diagnostic Report")
+    print("10. Exit")
 
 
 choice = ""
 
-while choice != "9":
+while choice != "10":
 
     display_menu()
 
@@ -133,6 +135,17 @@ while choice != "9":
 
 
     elif choice == "8":
+        results = get_service_status()
+
+        report_data["Service Status"] = results
+
+        print(f"\nOperating System: {results['Operating System']}")
+
+        for service, status in results["Services"].items():
+            print(f"{service}: {status}")
+
+
+    elif choice == "9":
 
         if not report_data:
 
@@ -146,10 +159,10 @@ while choice != "9":
             print("Diagnostic report generated successfully.")
     
 
-    elif choice == "9":
+    elif choice == "10":
         print("Exiting the program...")
         exit()
         
     else:
-        print("Invalid choice. Please choose 1, 2, 3, 4, 5, 6, 7 or 8.")
+        print("Invalid choice. Please choose an option from 1 to 10.")
         
