@@ -44,7 +44,7 @@ def run_security_checks():
 
                 if connection.pid:
 
-                    process_pid = connection.pid
+                    process_id = connection.pid
 
                     try:
                         process = psutil.Process(connection.pid)
