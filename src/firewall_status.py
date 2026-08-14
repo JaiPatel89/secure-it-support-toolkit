@@ -1,248 +1,388 @@
 # ============================================================
 # FIREWALL STATUS MODULE
 # ============================================================
-# This module checks the status of the operating system's
-# built-in firewall.
+# This module checks whether the operating system firewall is
+# enabled.
 #
-# Different operating systems use different firewall
-# management tools, so platform-specific commands are used:
+# Different operating systems use different firewall tools:
 #
 # Windows:
-#   netsh advfirewall
+#     netsh
 #
 # Linux:
-#   UFW (Uncomplicated Firewall)
+#     UFW (Uncomplicated Firewall)
 #
 # macOS:
-#   socketfilterfw
+#     socketfilterfw
 #
-# The results are returned as a dictionary so that they can be
-# displayed by main.py and included in diagnostic reports.
+# The function returns firewall information as a dictionary
+# so that it can be displayed by main.py and included in the
+# diagnostic report.
+#
+# Error handling is used when executing firewall commands so
+# that a missing command, inaccessible firewall configuration
+# or unexpected command failure does not cause the entire
+# toolkit to stop.
 # ============================================================
 
 
 # ============================================================
 # MODULE IMPORTS
 # ============================================================
+# The following modules provide the functionality required to
+# identify the operating system and execute firewall commands.
+# ============================================================
 
-# platform is used to identify which operating system the
-# toolkit is currently running on.
+
+# platform identifies which operating system is being used.
+# This allows the appropriate firewall command to be selected.
 import platform
 
 
-# subprocess allows Python to execute operating-system commands
-# and capture their output.
+# subprocess allows the toolkit to execute operating-system
+# commands such as netsh, ufw and socketfilterfw.
 import subprocess
 
 
 # ============================================================
 # GET FIREWALL STATUS
 # ============================================================
-# Detects the operating system and checks the status of its
-# firewall.
+# Determines the firewall status for the operating system.
+#
+# Windows returns the status of the Domain, Private and Public
+# firewall profiles.
+#
+# Linux and macOS return the overall firewall status.
 # ============================================================
 
 def get_firewall_status():
 
-    # Identify the operating system.
-    #
-    # Expected values include:
-    #
-    # Windows
-    # Linux
-    # Darwin (macOS)
     operating_system = platform.system()
+
+
+    # Dictionary used to store Windows firewall profile status.
+    firewall_status = {}
 
 
     # ========================================================
     # WINDOWS FIREWALL
     # ========================================================
-    # Windows provides firewall configuration information
-    # through the netsh command.
+    # Windows provides firewall information through the netsh
+    # command.
     #
-    # The "allprofiles" option retrieves information for:
+    # The command checks all three Windows Firewall profiles:
     #
     # - Domain
     # - Private
     # - Public
-    #
-    # firewall profiles.
     # ========================================================
 
     if operating_system == "Windows":
 
-        result = subprocess.run(
-            [
-                "netsh",
-                "advfirewall",
-                "show",
-                "allprofiles"
-            ],
-            capture_output=True,
-            text=True
-        )
+        try:
+
+            result = subprocess.run(
+                [
+                    "netsh",
+                    "advfirewall",
+                    "show",
+                    "allprofiles"
+                ],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
 
 
-        # Store the command output so it can be analysed.
+        # ----------------------------------------------------
+        # ERROR HANDLING
+        # ----------------------------------------------------
+        # FileNotFoundError means the netsh command could not
+        # be located.
+        # ----------------------------------------------------
+
+        except FileNotFoundError:
+
+            return {
+                "Firewall": "Command Unavailable"
+            }
+
+
+        # ----------------------------------------------------
+        # TIMEOUT HANDLING
+        # ----------------------------------------------------
+        # Prevents the toolkit from waiting indefinitely for
+        # the firewall command to complete.
+        # ----------------------------------------------------
+
+        except subprocess.TimeoutExpired:
+
+            return {
+                "Firewall": "Command Timed Out"
+            }
+
+
+        # ----------------------------------------------------
+        # GENERAL COMMAND ERROR
+        # ----------------------------------------------------
+
+        except Exception:
+
+            return {
+                "Firewall": "Unable to determine"
+            }
+
+
+        # ====================================================
+        # CHECK COMMAND RESULT
+        # ====================================================
+        # If the command failed, return a descriptive status
+        # instead of attempting to process incomplete output.
+        # ====================================================
+
+        if result.returncode != 0:
+
+            return {
+                "Firewall": "Unable to determine"
+            }
+
+
         firewall_output = result.stdout
 
 
-        # Dictionary used to store the state of each Windows
-        # firewall profile.
-        firewall_status = {}
+        # ====================================================
+        # PROCESS WINDOWS PROFILES
+        # ====================================================
 
-
-        # Keeps track of which firewall profile is currently
-        # being processed while reading the command output.
         current_profile = None
 
-
-        # Split the command output into individual lines so
-        # each line can be examined.
         lines = firewall_output.splitlines()
 
 
-        # ----------------------------------------------------
-        # PROCESS WINDOWS FIREWALL PROFILES
-        # ----------------------------------------------------
-
         for line in lines:
 
-            # Identify the Domain firewall profile.
             if "Domain Profile Settings" in line:
 
                 current_profile = "Domain"
 
 
-            # Identify the Private firewall profile.
             elif "Private Profile Settings" in line:
 
                 current_profile = "Private"
 
 
-            # Identify the Public firewall profile.
             elif "Public Profile Settings" in line:
 
                 current_profile = "Public"
 
 
-            # ------------------------------------------------
-            # FIREWALL STATE
-            # ------------------------------------------------
-            # Once a profile has been identified, a line
-            # containing "State" provides its current status.
-            #
-            # The final item on the line contains the state,
-            # such as ON or OFF.
-            # ------------------------------------------------
-
-            elif "State" in line:
+            elif (
+                "State" in line
+                and current_profile is not None
+            ):
 
                 firewall_status[current_profile] = (
                     line.split()[-1]
                 )
 
 
+        # ====================================================
+        # CHECK WHETHER PROFILE INFORMATION WAS FOUND
+        # ====================================================
+        # If no profiles were successfully identified, return
+        # a descriptive error rather than an empty dictionary.
+        # ====================================================
+
+        if not firewall_status:
+
+            return {
+                "Firewall": "Unable to determine"
+            }
+
+
     # ========================================================
     # LINUX FIREWALL
     # ========================================================
-    # On Linux, the toolkit checks UFW, the Uncomplicated
-    # Firewall command-line interface.
+    # Linux systems commonly use UFW to manage firewall rules.
     #
-    # "ufw status" reports whether the firewall is active.
+    # The command:
+    #
+    #     ufw status
+    #
+    # is used to determine whether the firewall is active.
     # ========================================================
 
     elif operating_system == "Linux":
 
-        result = subprocess.run(
-            ["ufw", "status"],
-            capture_output=True,
-            text=True
+        try:
+
+            result = subprocess.run(
+                ["ufw", "status"],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+
+
+        except FileNotFoundError:
+
+            return {
+                "Firewall": "Command Unavailable"
+            }
+
+
+        except subprocess.TimeoutExpired:
+
+            return {
+                "Firewall": "Command Timed Out"
+            }
+
+
+        except Exception:
+
+            return {
+                "Firewall": "Unable to determine"
+            }
+
+
+        firewall_output = (
+            result.stdout + result.stderr
         )
 
 
-        # Store the command output for analysis.
-        firewall_output = result.stdout
-
-
-        # UFW reports an enabled firewall using:
-        #
-        # Status: active
-        #
-        # If this text is present, the firewall is considered
-        # active.
         if "Status: active" in firewall_output:
 
             return {
                 "Firewall": "Active"
             }
 
-
-        # If "Status: active" is not present, the toolkit
-        # reports the firewall as inactive.
-        else:
+        elif "Status: inactive" in firewall_output:
 
             return {
                 "Firewall": "Inactive"
+            }
+
+        else:
+
+            return {
+                "Firewall": "Unable to determine"
             }
 
 
     # ========================================================
     # macOS FIREWALL
     # ========================================================
-    # macOS uses Apple's Application Firewall.
+    # macOS provides Application Firewall information through:
     #
-    # The socketfilterfw utility can be used to query the
-    # firewall's global state.
+    # /usr/libexec/ApplicationFirewall/socketfilterfw
     #
-    # This section requires testing on a physical macOS system
-    # to confirm the output format across supported versions.
+    # The --getglobalstate option reports whether the firewall
+    # is enabled.
     # ========================================================
 
     elif operating_system == "Darwin":
 
-        result = subprocess.run(
-            [
-                "/usr/libexec/ApplicationFirewall/socketfilterfw",
-                "--getglobalstate"
-            ],
-            capture_output=True,
-            text=True
+        try:
+
+            result = subprocess.run(
+                [
+                    "/usr/libexec/ApplicationFirewall/"
+                    "socketfilterfw",
+                    "--getglobalstate"
+                ],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+
+
+        except FileNotFoundError:
+
+            return {
+                "Firewall": "Command Unavailable"
+            }
+
+
+        except subprocess.TimeoutExpired:
+
+            return {
+                "Firewall": "Command Timed Out"
+            }
+
+
+        except Exception:
+
+            return {
+                "Firewall": "Unable to determine"
+            }
+
+
+        firewall_output = (
+            result.stdout + result.stderr
         )
 
 
-        # Combine standard output and error output because
-        # socketfilterfw may provide status information through
-        # either stream depending on the system.
-        firewall_output = result.stdout + result.stderr
-
-
-        # Look for the word "enabled" in the command output.
         if "enabled" in firewall_output.lower():
 
             return {
                 "Firewall": "Active"
             }
 
-
-        # If "enabled" is not found, report the firewall as
-        # inactive.
-        else:
+        elif "disabled" in firewall_output.lower():
 
             return {
                 "Firewall": "Inactive"
             }
 
+        else:
+
+            return {
+                "Firewall": "Unable to determine"
+            }
+
 
     # ========================================================
-    # RETURN WINDOWS FIREWALL RESULTS
+    # UNSUPPORTED OPERATING SYSTEM
     # ========================================================
-    # Windows stores the results for each firewall profile in
-    # firewall_status.
+    # If the operating system is not currently supported,
+    # return a descriptive result instead of failing.
+    # ========================================================
+
+    else:
+
+        return {
+            "Firewall": "Unsupported Operating System"
+        }
+
+
+    # ========================================================
+    # RETURN FIREWALL STATUS
+    # ========================================================
+    # Windows reaches this point after processing the Domain,
+    # Private and Public firewall profiles.
     #
-    # Linux and macOS return their results earlier because
-    # their firewall output is represented as a single status.
+    # Linux and macOS return earlier because they use a single
+    # overall firewall status.
     # ========================================================
 
     return firewall_status
 
+
+# ============================================================
+# STANDALONE TEST
+# ============================================================
+# This allows firewall_status.py to be tested independently
+# from the main TechAssist application.
+#
+# The code below only runs when this file is executed directly.
+# It does not run when the module is imported by main.py.
+# ============================================================
+
+if __name__ == "__main__":
+
+    firewall_information = get_firewall_status()
+
+
+    for item, value in firewall_information.items():
+
+        print(f"{item}: {value}")

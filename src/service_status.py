@@ -1,132 +1,159 @@
 # ============================================================
 # SERVICE STATUS MODULE
 # ============================================================
-# This module checks the status of important operating system
+# This module checks the status of important operating-system
 # services.
 #
-# Different operating systems manage services differently:
+# The services checked depend on the operating system.
 #
 # Windows:
-#   PowerShell / Windows Services
+#     - Windows Update
+#     - DNS Client
+#     - Print Spooler
+#     - Microsoft Defender
 #
 # Linux:
-#   systemctl
+#     - SSH
+#     - Cron
 #
 # macOS:
-#   launchctl
+#     - SSH
 #
-# The module standardizes the different status values returned
-# by these operating systems so the rest of the toolkit can
-# work with a consistent set of results.
+# The module standardizes service states so that different
+# operating systems can return consistent results.
 #
-# The results are returned as a dictionary containing:
+# For example:
 #
-# - Operating system
-# - Service names
-# - Service status
+#     running  -> Running
+#     active   -> Running
+#     stopped  -> Stopped
+#     inactive -> Stopped
+#
+# The results are returned as a dictionary so that they can be
+# displayed by main.py, used by system_health.py and included
+# in the diagnostic report.
+#
+# Error handling is included because:
+#
+# - A service may not exist.
+# - A command may not be available.
+# - A service may change state while being checked.
+# - The command may fail or time out.
 # ============================================================
 
 
 # ============================================================
 # MODULE IMPORTS
 # ============================================================
+# The following modules provide the functionality required to
+# identify the operating system and execute service-management
+# commands.
+# ============================================================
 
-# platform is used to identify the operating system.
+
+# platform identifies the operating system.
 import platform
 
 
-# subprocess allows Python to execute operating-system
-# commands and capture their output.
+# subprocess allows the toolkit to execute operating-system
+# service commands such as PowerShell, systemctl and launchctl.
 import subprocess
 
 
 # ============================================================
 # RUN COMMAND
 # ============================================================
-# Executes an operating-system command and returns the result.
+# Executes an operating-system command safely.
 #
-# This helper function keeps command execution in one place
-# and provides basic error handling.
+# Returning None when the command cannot be executed allows the
+# calling function to handle the problem without crashing.
 # ============================================================
 
 def run_command(command):
 
     try:
 
-        # Execute the supplied command.
-        #
-        # capture_output=True stores stdout and stderr so they
-        # can be examined by the toolkit.
-        #
-        # text=True means the output is returned as strings
-        # rather than raw bytes.
         result = subprocess.run(
             command,
             capture_output=True,
-            text=True
+            text=True,
+            timeout=10
         )
 
-
-        # Return the completed subprocess result.
         return result
 
 
-    # FileNotFoundError occurs when the required command is not
-    # available on the operating system.
-    #
-    # For example, a Linux system may not have the Windows
-    # PowerShell service commands available.
+    # --------------------------------------------------------
+    # COMMAND NOT FOUND
+    # --------------------------------------------------------
+    # Raised when the requested executable is unavailable.
+    # --------------------------------------------------------
+
     except FileNotFoundError:
 
         return None
 
 
-    # Catch any other unexpected command execution errors.
-    except Exception as error:
+    # --------------------------------------------------------
+    # COMMAND TIMEOUT
+    # --------------------------------------------------------
+    # Prevents a service command from hanging indefinitely.
+    # --------------------------------------------------------
 
-        print(f"Command error: {error}")
+    except subprocess.TimeoutExpired:
+
+        return None
+
+
+    # --------------------------------------------------------
+    # GENERAL ERROR
+    # --------------------------------------------------------
+
+    except Exception:
 
         return None
 
 
 # ============================================================
-# STANDARDIZE SERVICE STATUS
+# STANDARDIZE STATUS
 # ============================================================
-# Different operating systems use different terminology for
-# service states.
+# Converts different service status values into consistent
+# output used throughout TechAssist.
 #
-# For example:
+# Running states:
 #
-# Windows:
-#   Running
-#   Stopped
+#     running
+#     active
 #
-# Linux:
-#   active
-#   inactive
-#   failed
-#   dead
+# become:
 #
-# This function converts those different values into a common
-# format that the rest of the toolkit can understand.
+#     Running
+#
+# Stopped states:
+#
+#     stopped
+#     inactive
+#     dead
+#     failed
+#
+# become:
+#
+#     Stopped
 # ============================================================
 
 def standardize_status(status):
 
-    # Remove unnecessary whitespace and convert the status to
-    # lowercase so comparisons are consistent.
     status = status.strip().lower()
 
 
-    # Both "running" and "active" indicate that the service is
-    # currently operational.
-    if status in ["running", "active"]:
+    if status in [
+        "running",
+        "active"
+    ]:
 
         return "Running"
 
 
-    # These statuses indicate that the service is not currently
-    # operational.
     elif status in [
         "stopped",
         "inactive",
@@ -137,8 +164,6 @@ def standardize_status(status):
         return "Stopped"
 
 
-    # If an unfamiliar status is returned, preserve the value
-    # but capitalize the first character.
     else:
 
         return status.capitalize()
@@ -147,31 +172,33 @@ def standardize_status(status):
 # ============================================================
 # GET SERVICE STATUS
 # ============================================================
-# Detects the operating system and checks a predefined set of
-# important services.
+# Retrieves service information for the current operating
+# system.
 # ============================================================
 
 def get_service_status():
 
-    # Identify the operating system.
-    #
-    # Windows returns "Windows"
-    # Linux returns "Linux"
-    # macOS returns "Darwin"
-    operating_system = platform.system()
+    try:
+
+        operating_system = platform.system()
+
+    except Exception:
+
+        operating_system = "Unknown"
 
 
-    # Dictionary used to store the service results.
+    # Dictionary containing the results for each service.
     service_results = {}
 
 
     # ========================================================
     # WINDOWS SERVICES
     # ========================================================
-    # Windows services are queried using PowerShell.
+    # Windows services are queried using PowerShell's
+    # Get-Service command.
     #
-    # The dictionary maps a user-friendly display name to the
-    # actual Windows service name.
+    # Service names are different from their display names,
+    # so both are stored in the dictionary.
     # ========================================================
 
     if operating_system == "Windows":
@@ -185,74 +212,70 @@ def get_service_status():
             "Print Spooler": "Spooler",
 
             "Microsoft Defender": "WinDefend"
+
         }
 
 
-        # Check each Windows service.
         for display_name, service_name in services.items():
 
-
-            # PowerShell is used to retrieve the service status.
-            #
-            # -Name identifies the Windows service.
-            #
-            # -ErrorAction SilentlyContinue prevents PowerShell
-            # from displaying an error if the service cannot be
-            # found.
             result = run_command(
                 [
                     "powershell",
                     "-Command",
-                    f"(Get-Service -Name '{service_name}' "
-                    f"-ErrorAction SilentlyContinue).Status"
+                    (
+                        f"(Get-Service "
+                        f"-Name '{service_name}' "
+                        f"-ErrorAction SilentlyContinue)"
+                        f".Status"
+                    )
                 ]
             )
 
 
-            # If PowerShell could not be executed, report that
-            # the command is unavailable.
+            # ------------------------------------------------
+            # COMMAND UNAVAILABLE
+            # ------------------------------------------------
+
             if result is None:
 
                 service_results[
                     display_name
                 ] = "Command Unavailable"
 
+                continue
+
+
+            # ------------------------------------------------
+            # CHECK COMMAND RESULT
+            # ------------------------------------------------
+
+            status = result.stdout.strip()
+
+
+            if status:
+
+                service_results[
+                    display_name
+                ] = standardize_status(status)
+
 
             else:
 
-                # Retrieve the service status from stdout.
-                status = result.stdout.strip()
-
-
-                # If a status was returned, standardize it before
-                # storing it.
-                if status:
-
-                    service_results[
-                        display_name
-                    ] = standardize_status(status)
-
-
-                # No status usually means the requested service
-                # could not be found.
-                else:
-
-                    service_results[
-                        display_name
-                    ] = "Not Found"
+                service_results[
+                    display_name
+                ] = "Not Found"
 
 
     # ========================================================
     # LINUX SERVICES
     # ========================================================
-    # Linux systems using systemd can query services with
-    # systemctl.
+    # Linux services are queried using systemctl.
     #
-    # systemctl is-active returns values such as:
+    # is-active returns states such as:
     #
-    # active
-    # inactive
-    # failed
+    #     active
+    #     inactive
+    #     failed
     # ========================================================
 
     elif operating_system == "Linux":
@@ -262,10 +285,10 @@ def get_service_status():
             "SSH": "ssh",
 
             "Cron": "cron"
+
         }
 
 
-        # Check each Linux service.
         for display_name, service_name in services.items():
 
             result = run_command(
@@ -277,44 +300,40 @@ def get_service_status():
             )
 
 
-            # If systemctl is unavailable, report that the
-            # command could not be executed.
             if result is None:
 
                 service_results[
                     display_name
                 ] = "Command Unavailable"
 
+                continue
+
+
+            status = result.stdout.strip()
+
+
+            if status:
+
+                service_results[
+                    display_name
+                ] = standardize_status(status)
+
 
             else:
 
-                # Retrieve the service status.
-                status = result.stdout.strip()
-
-
-                # Standardize the status if a value was returned.
-                if status:
-
-                    service_results[
-                        display_name
-                    ] = standardize_status(status)
-
-
-                # No output indicates that the service could not
-                # be identified.
-                else:
-
-                    service_results[
-                        display_name
-                    ] = "Not Found"
+                service_results[
+                    display_name
+                ] = "Not Found"
 
 
     # ========================================================
     # macOS SERVICES
     # ========================================================
-    # macOS uses launchd to manage system services.
+    # macOS uses launchctl to manage system services.
     #
-    # launchctl is used to query the OpenSSH service.
+    # The SSH daemon is identified by:
+    #
+    #     com.openssh.sshd
     # ========================================================
 
     elif operating_system == "Darwin":
@@ -322,10 +341,10 @@ def get_service_status():
         services = {
 
             "SSH": "com.openssh.sshd"
+
         }
 
 
-        # Check each macOS service.
         for display_name, service_name in services.items():
 
             result = run_command(
@@ -337,8 +356,6 @@ def get_service_status():
             )
 
 
-            # If launchctl cannot be executed, report that the
-            # command is unavailable.
             if result is None:
 
                 service_results[
@@ -346,8 +363,6 @@ def get_service_status():
                 ] = "Command Unavailable"
 
 
-            # A return code of 0 indicates that launchctl
-            # successfully found the requested service.
             elif result.returncode == 0:
 
                 service_results[
@@ -355,8 +370,6 @@ def get_service_status():
                 ] = "Running"
 
 
-            # A non-zero return code indicates that the service
-            # was not found or is not currently loaded.
             else:
 
                 service_results[
@@ -365,14 +378,21 @@ def get_service_status():
 
 
     # ========================================================
+    # UNSUPPORTED OPERATING SYSTEM
+    # ========================================================
+
+    else:
+
+        service_results[
+            "Services"
+        ] = "Unsupported Operating System"
+
+
+    # ========================================================
     # RETURN SERVICE INFORMATION
     # ========================================================
-    # Return both the operating system and the collected
-    # service information.
-    #
-    # Keeping the operating system in the result allows
-    # main.py and the report generator to clearly identify
-    # which platform was checked.
+    # Both the operating system and service results are
+    # returned so that main.py can display them correctly.
     # ========================================================
 
     return {
@@ -380,19 +400,17 @@ def get_service_status():
         "Operating System": operating_system,
 
         "Services": service_results
+
     }
 
 
 # ============================================================
-# STANDALONE MODULE TEST
+# STANDALONE TEST
 # ============================================================
-# This section only runs when service_status.py itself is
-# executed directly.
+# Allows service_status.py to be tested independently from
+# main.py.
 #
-# It does not run when the module is imported by main.py.
-#
-# This makes it possible to test the module independently
-# without launching the entire toolkit.
+# This section only runs when the file itself is executed.
 # ============================================================
 
 if __name__ == "__main__":
@@ -400,10 +418,17 @@ if __name__ == "__main__":
     results = get_service_status()
 
 
+    print("SERVICE STATUS")
+    print("--------------")
+
+
     print(
         f"Operating System: "
         f"{results['Operating System']}"
     )
+
+
+    print()
 
 
     for service, status in results["Services"].items():

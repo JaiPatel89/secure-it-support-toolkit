@@ -4,76 +4,89 @@
 # This module collects basic information about the computer
 # running the Secure IT Support Toolkit.
 #
-# The information collected can be useful during IT support
-# and troubleshooting because it provides a quick overview
-# of the system's hardware, operating system and current user.
+# The information collected includes:
 #
-# The module is designed to work across multiple operating
-# systems by using Python's cross-platform libraries where
-# possible.
+# - Hostname
+# - Operating System
+# - OS Version
+# - System Architecture
+# - Processor
+# - Current Username
+# - Total RAM
+# - Disk Usage
+#
+# The information is returned as a dictionary so that it can
+# be displayed by main.py and included in the diagnostic report.
+#
+# Error handling is used throughout the module so that a failure
+# to retrieve one piece of information does not cause the entire
+# toolkit to stop running.
 # ============================================================
 
 
 # ============================================================
 # MODULE IMPORTS
 # ============================================================
+# The following Python modules provide the functionality
+# required to collect system information.
+# ============================================================
 
-# platform
-# Provides operating-system and hardware information such as
-# the OS name, OS version, processor and system architecture.
+
+# platform provides information about the operating system,
+# operating system version, processor and system architecture.
 import platform
 
 
-# socket
-# Used here to retrieve the computer's hostname.
+# socket provides networking-related functionality.
+# It is used here to retrieve the computer's hostname.
 import socket
 
 
-# psutil
-# Provides access to system information such as RAM and disk
-# usage.
+# psutil provides access to system and process information.
+# It is used here to retrieve:
 #
-# psutil is a third-party Python library and is used throughout
-# this project for system monitoring functionality.
+# - Total system RAM
+# - Disk usage
+#
+# psutil is a third-party Python library.
 import psutil
 
 
-# getpass
-# Used to determine the username of the account currently
-# running the toolkit.
+# getpass provides access to the username of the account
+# running the program.
 import getpass
 
 
 # ============================================================
 # GET SYSTEM INFORMATION
 # ============================================================
-# Collects the main system information required by the
-# toolkit and returns it as a dictionary.
+# Collects system information and returns it as a dictionary.
 #
-# Returning a dictionary makes the information easy to:
-#
-# - Display in the main menu
-# - Store in report_data
-# - Include in the diagnostic report
-# - Reuse by other modules if required
+# Each individual information-gathering operation has its own
+# error handling so that one failure does not prevent the
+# remaining information from being collected.
 # ============================================================
 
 def get_system_information():
 
+    # Dictionary used to store all collected system information.
     system_info = {}
 
 
     # ========================================================
     # HOSTNAME
     # ========================================================
-    # socket.gethostname() returns the network hostname of
-    # the computer.
-    #
-    # This can help identify which machine a diagnostic report
-    # was generated from.
+    # socket.gethostname() retrieves the name assigned to the
+    # computer.
     # ========================================================
 
-    system_info["Hostname"] = socket.gethostname()
+    try:
+
+        system_info["Hostname"] = socket.gethostname()
+
+    except Exception:
+
+        system_info["Hostname"] = "Unable to determine"
 
 
     # ========================================================
@@ -83,121 +96,190 @@ def get_system_information():
     #
     # Typical results include:
     #
-    # Windows
-    # Linux
-    # Darwin
-    #
-    # Darwin is the value returned for macOS.
+    # - Windows
+    # - Linux
+    # - Darwin (macOS)
     # ========================================================
 
-    system_info["Operating System"] = platform.system()
+    try:
+
+        system_info["Operating System"] = platform.system()
+
+    except Exception:
+
+        system_info["Operating System"] = "Unable to determine"
 
 
     # ========================================================
-    # OPERATING SYSTEM VERSION
+    # OS VERSION
     # ========================================================
-    # platform.version() provides the operating system's
-    # underlying version/build information.
-    #
-    # This can be useful when troubleshooting software or
-    # compatibility issues.
+    # platform.version() retrieves operating system version
+    # information.
     # ========================================================
 
-    system_info["OS Version"] = platform.version()
+    try:
+
+        system_info["OS Version"] = platform.version()
+
+    except Exception:
+
+        system_info["OS Version"] = "Unable to determine"
 
 
     # ========================================================
     # SYSTEM ARCHITECTURE
     # ========================================================
-    # platform.architecture() identifies whether the Python
-    # environment is running as 32-bit or 64-bit.
-    #
-    # [0] selects the architecture value from the tuple
-    # returned by platform.architecture().
+    # platform.architecture() identifies whether the operating
+    # system is running as 32-bit or 64-bit.
     # ========================================================
 
-    system_info["Architecture"] = platform.architecture()[0]
+    try:
+
+        system_info["Architecture"] = platform.architecture()[0]
+
+    except Exception:
+
+        system_info["Architecture"] = "Unable to determine"
 
 
     # ========================================================
     # PROCESSOR
     # ========================================================
-    # platform.processor() attempts to return information
-    # identifying the system processor.
+    # platform.processor() attempts to retrieve information
+    # about the system processor.
     #
-    # The exact information returned can vary between operating
-    # systems and hardware.
+    # Some operating systems may return an empty value, so an
+    # empty result is treated as information that could not
+    # be determined.
     # ========================================================
 
-    system_info["Processor"] = platform.processor()
+    try:
+
+        processor = platform.processor()
+
+        if processor:
+
+            system_info["Processor"] = processor
+
+        else:
+
+            system_info["Processor"] = "Unable to determine"
+
+    except Exception:
+
+        system_info["Processor"] = "Unable to determine"
 
 
     # ========================================================
     # CURRENT USER
     # ========================================================
-    # getpass.getuser() returns the username associated with
-    # the account running the program.
-    #
-    # This can be useful when investigating permissions or
-    # identifying which user generated a diagnostic report.
+    # getpass.getuser() retrieves the username of the account
+    # running the toolkit.
     # ========================================================
 
-    system_info["Username"] = getpass.getuser()
+    try:
+
+        system_info["Username"] = getpass.getuser()
+
+    except Exception:
+
+        system_info["Username"] = "Unable to determine"
 
 
     # ========================================================
     # RAM
     # ========================================================
-    # psutil.virtual_memory() retrieves information about the
+    # psutil.virtual_memory() provides information about the
     # system's physical memory.
     #
-    # memory.total contains the total amount of installed
-    # memory in bytes.
-    #
-    # Dividing by 1024^3 converts bytes into gigabytes.
-    #
-    # :.2f limits the displayed value to two decimal places.
+    # The total memory is returned in bytes, so it is converted
+    # into gigabytes before being added to the results.
     # ========================================================
 
-    memory = psutil.virtual_memory()
+    try:
 
-    system_info["RAM"] = (
-        f"{memory.total / (1024 ** 3):.2f} GB"
-    )
+        memory = psutil.virtual_memory()
+
+        system_info["RAM"] = (
+            f"{memory.total / (1024 ** 3):.2f} GB"
+        )
+
+    except Exception:
+
+        system_info["RAM"] = "Unable to determine"
 
 
     # ========================================================
     # DISK USAGE
     # ========================================================
-    # psutil.disk_usage("/") retrieves disk information for
-    # the root filesystem.
+    # psutil.disk_usage() provides information about the
+    # filesystem's total and used storage.
     #
-    # The returned information includes:
+    # Windows uses the C:\ drive as the primary system drive,
+    # while Linux and macOS normally use /.
     #
-    # - Total disk capacity
-    # - Used disk space
-    # - Free disk space
-    #
-    # The values returned by psutil are in bytes, so they are
-    # converted to gigabytes before being displayed.
+    # The appropriate path is selected based on the operating
+    # system.
     # ========================================================
 
-    disk = psutil.disk_usage("/")
+    try:
+
+        operating_system = platform.system()
+
+        if operating_system == "Windows":
+
+            disk_path = "C:\\"
+
+        else:
+
+            disk_path = "/"
 
 
-    system_info["Disk Usage"] = (
-        f"{disk.used / (1024 ** 3):.2f} GB used "
-        f"of {disk.total / (1024 ** 3):.2f} GB"
-    )
+        disk = psutil.disk_usage(disk_path)
+
+
+        # Convert bytes into gigabytes and format the values
+        # to two decimal places.
+
+        system_info["Disk Usage"] = (
+            f"{disk.used / (1024 ** 3):.2f} GB used "
+            f"of {disk.total / (1024 ** 3):.2f} GB"
+        )
+
+    except Exception:
+
+        system_info["Disk Usage"] = "Unable to determine"
 
 
     # ========================================================
-    # RETURN RESULTS
+    # RETURN SYSTEM INFORMATION
     # ========================================================
-    # Return the completed dictionary to the calling function.
+    # Returns the completed dictionary to the calling program.
     #
-    # The main program can then display the information and
-    # store it in the diagnostic report.
+    # main.py can then:
+    #
+    # - Display the information to the user
+    # - Store it in report_data
+    # - Include it in the diagnostic report
     # ========================================================
 
     return system_info
+
+
+# ============================================================
+# STANDALONE TEST
+# ============================================================
+# This allows system_info.py to be tested independently from
+# the main TechAssist application.
+#
+# The code below only runs when this file is executed directly.
+# It does not run when the module is imported by main.py.
+# ============================================================
+
+if __name__ == "__main__":
+
+    information = get_system_information()
+
+    for item, value in information.items():
+
+        print(f"{item}: {value}")

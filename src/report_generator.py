@@ -1,73 +1,84 @@
 # ============================================================
 # REPORT GENERATOR MODULE
 # ============================================================
-# This module creates a text-based diagnostic report from the
-# information collected by the Secure IT Support Toolkit.
+# This module creates a text-based diagnostic report containing
+# information collected by the TechAssist diagnostic modules.
 #
-# The report generator is responsible for:
+# The report can contain information from:
 #
-# - Creating the reports directory
-# - Creating a unique timestamped report filename
-# - Writing the report header
-# - Formatting diagnostic information
-# - Handling nested dictionaries and lists
-# - Writing each diagnostic section
-# - Writing the report footer
+# - System Information
+# - Network Information
+# - Firewall Status
+# - Disk Usage
+# - Process Monitor
+# - Network Diagnostics
+# - Security Checks
+# - Service Status
+# - System Health
 #
-# The module is designed to work with the data structures
-# returned by the other toolkit modules without needing
-# separate report-writing code for each module.
+# The module uses a recursive function to process dictionaries
+# and lists of different depths.
+#
+# This is important because some diagnostic modules return
+# simple dictionaries while others return nested structures.
+#
+# For example:
+#
+# System Health
+#     └── Disk Health
+#           └── List
+#                 └── Dictionary
+#
+# The report generator can process this structure without
+# requiring separate formatting code for every module.
+#
+# Reports are stored in the "reports" directory.
+#
+# Each report receives a timestamped filename so that previous
+# reports are not overwritten.
+#
+# Error handling is included around file operations so that
+# problems creating or writing a report are handled cleanly.
 # ============================================================
 
 
 # ============================================================
 # MODULE IMPORTS
 # ============================================================
+# datetime:
+#     Used to generate timestamps for the report and filename.
+#
+# os:
+#     Used to create and check the reports directory.
+# ============================================================
 
-# datetime is used to generate timestamps for the report
-# filename and report contents.
 from datetime import datetime
-
-
-# os provides functions for working with directories and files.
 import os
 
 
 # ============================================================
 # FORMAT REPORT VALUE
 # ============================================================
-# Handles individual values before they are written to the
+# Formats individual values before they are written to the
 # report.
 #
-# Some values require additional formatting.
+# Disk usage is stored internally as a number, for example:
 #
-# For example:
+#     46.5
 #
-# Usage: 46.5
+# The report should display this as:
 #
-# becomes:
+#     46.5 %
 #
-# Usage: 46.5 %
-#
-# Keeping this formatting in a separate function means the
-# report-writing logic does not need to contain special cases
-# throughout the module.
+# Other values are converted to strings normally.
 # ============================================================
 
 def format_value(key, value):
 
-    # Disk usage is stored internally as a numeric value so that
-    # system_health.py can perform calculations against it.
-    #
-    # The percentage symbol is added only when generating the
-    # human-readable report.
     if key == "Usage":
 
         return f"{value} %"
 
-
-    # All other values are converted to strings without
-    # additional formatting.
     else:
 
         return str(value)
@@ -76,22 +87,23 @@ def format_value(key, value):
 # ============================================================
 # WRITE REPORT DATA
 # ============================================================
-# Recursively processes diagnostic information and writes it
-# into the report.
+# Recursively processes dictionaries and lists and writes their
+# contents to the report.
 #
-# The diagnostic modules do not all return the same data
-# structure.
+# A recursive function calls itself when it encounters another
+# dictionary or list.
 #
-# Some return:
+# This allows the same function to handle structures such as:
 #
-# - Dictionaries
-# - Lists
-# - Lists containing dictionaries
-# - Dictionaries containing lists
-# - Nested dictionaries
+# Dictionary
+#     └── Dictionary
 #
-# A recursive function allows the report generator to process
-# all of these structures using the same logic.
+# Dictionary
+#     └── List
+#           └── Dictionary
+#
+# This approach makes the report generator easier to maintain
+# when new diagnostic modules are added in the future.
 # ============================================================
 
 def write_report_data(
@@ -111,50 +123,49 @@ def write_report_data(
     # "Firewall": "Active"
     #
     # "Overall System Health": "Warning"
-    #
-    # "Operating System": "Windows"
     # ========================================================
 
-    if isinstance(information, dict):
+    if isinstance(
+        information,
+        dict
+    ):
 
-
-        # Process every key/value pair in the dictionary.
         for key, value in information.items():
 
 
-            # =================================================
+            # ------------------------------------------------
             # NESTED DICTIONARY OR LIST
-            # =================================================
+            # ------------------------------------------------
             # If a value contains another dictionary or list,
             # write the key as a heading and recursively process
-            # its contents.
-            #
-            # This allows complex structures such as System
-            # Health to be written without hard-coding the
-            # structure of each module.
-            # =================================================
+            # the contents.
+            # ------------------------------------------------
 
             if isinstance(
                 value,
                 (dict, list)
             ):
 
-                # Write the section heading.
                 report.write(
                     f"{key}:\n"
                 )
 
 
-                # Add an underline when the nested structure
-                # is a dictionary.
-                if isinstance(value, dict):
+                # ------------------------------------------------
+                # Add an underline for dictionary sections.
+                # ------------------------------------------------
+
+                if isinstance(
+                    value,
+                    dict
+                ):
 
                     report.write(
-                        "-" * len(key) + "\n"
+                        "-" * len(key)
+                        + "\n"
                     )
 
 
-                # Process the nested structure.
                 write_report_data(
                     report,
                     value,
@@ -162,45 +173,41 @@ def write_report_data(
                 )
 
 
-                # Add spacing after the nested section.
-                report.write("\n")
+                report.write(
+                    "\n"
+                )
 
 
-            # =================================================
+            # ------------------------------------------------
             # NORMAL DICTIONARY VALUE
-            # =================================================
-            # Handles simple key/value pairs such as:
-            #
-            # "Hostname": "DESKTOP-PC"
-            #
-            # "Status": "Healthy"
-            # =================================================
+            # ------------------------------------------------
+            # Handles simple key/value information.
+            # ------------------------------------------------
 
             else:
 
-                # Apply any required formatting.
                 formatted_value = format_value(
                     key,
                     value
                 )
 
 
-                # Write the formatted key/value pair.
                 report.write(
-                    f"{key}: {formatted_value}\n"
+                    f"{key}: "
+                    f"{formatted_value}\n"
                 )
 
 
     # ========================================================
     # LIST
     # ========================================================
-    # Lists are used by modules that can return multiple items.
+    # Lists are used by modules such as:
     #
-    # Examples:
+    # - Disk Usage
+    # - Process Monitor
+    # - Listening Ports
     #
-    # - Multiple disk partitions
-    # - Multiple processes
-    # - Multiple listening ports
+    # Each item in the list is processed individually.
     # ========================================================
 
     elif isinstance(
@@ -208,24 +215,28 @@ def write_report_data(
         list
     ):
 
-
-        # Process each item in the list.
         for item in information:
 
 
-            # =================================================
-            # LIST CONTAINING DICTIONARIES
-            # =================================================
-            # This is common for disk information, process
-            # information and listening-port information.
-            # =================================================
+            # ------------------------------------------------
+            # LIST CONTAINING A DICTIONARY
+            # ------------------------------------------------
+            # Example:
+            #
+            # [
+            #     {
+            #         "Mount Point": "C:",
+            #         "Usage": 46.5,
+            #         "Status": "Healthy"
+            #     }
+            # ]
+            # ------------------------------------------------
 
             if isinstance(
                 item,
                 dict
             ):
 
-                # Recursively process the dictionary.
                 write_report_data(
                     report,
                     item,
@@ -233,16 +244,14 @@ def write_report_data(
                 )
 
 
-                # Add spacing between individual items.
-                report.write("\n")
+                report.write(
+                    "\n"
+                )
 
 
-            # =================================================
-            # LIST CONTAINING NORMAL VALUES
-            # =================================================
-            # Handles lists containing simple strings or
-            # numbers.
-            # =================================================
+            # ------------------------------------------------
+            # LIST CONTAINING A NORMAL VALUE
+            # ------------------------------------------------
 
             else:
 
@@ -254,7 +263,7 @@ def write_report_data(
     # ========================================================
     # NORMAL VALUE
     # ========================================================
-    # Handles simple values such as strings and numbers.
+    # Handles strings, numbers and other simple values.
     # ========================================================
 
     else:
@@ -267,17 +276,23 @@ def write_report_data(
 # ============================================================
 # GENERATE REPORT
 # ============================================================
-# Main report-generation function.
+# This is the main report-generation function.
 #
-# This function:
+# It:
 #
-# 1. Creates the reports directory if required.
-# 2. Creates a timestamp for the report.
+# 1. Creates the reports directory.
+# 2. Generates a timestamp.
 # 3. Creates a unique report filename.
 # 4. Opens the report file.
 # 5. Writes the report header.
 # 6. Writes each diagnostic section.
 # 7. Writes the report footer.
+#
+# The function returns the filename when successful.
+#
+# Returning the filename makes it possible for main.py or a
+# future version of TechAssist to tell the user exactly where
+# the report was created.
 # ============================================================
 
 def generate_report(report_data):
@@ -286,29 +301,38 @@ def generate_report(report_data):
     # ========================================================
     # CREATE REPORTS DIRECTORY
     # ========================================================
-    # The toolkit stores generated reports inside a dedicated
-    # "reports" directory.
-    #
-    # If the directory already exists, nothing needs to be done.
+    # If the reports directory does not exist, create it.
+    # exist_ok=True prevents an error if the directory already
+    # exists.
     # ========================================================
 
-    if not os.path.exists("reports"):
+    try:
 
-        os.makedirs("reports")
+        os.makedirs(
+            "reports",
+            exist_ok=True
+        )
+
+
+    except OSError as error:
+
+        print(
+            f"Unable to create reports directory: "
+            f"{error}"
+        )
+
+        return None
 
 
     # ========================================================
     # CREATE TIMESTAMP
     # ========================================================
-    # The timestamp is used to make each report filename
-    # unique.
+    # The timestamp ensures that each report has a unique
+    # filename.
     #
     # Example:
     #
-    # diagnostic_report_12-08-2026_13-57-58.txt
-    #
-    # This prevents new reports from overwriting previous
-    # reports.
+    # 14-08-2026_13-30-45
     # ========================================================
 
     timestamp = datetime.now().strftime(
@@ -322,142 +346,251 @@ def generate_report(report_data):
 
     filename = (
         f"reports/"
-        f"diagnostic_report_{timestamp}.txt"
+        f"diagnostic_report_"
+        f"{timestamp}.txt"
     )
 
 
     # ========================================================
     # OPEN REPORT FILE
     # ========================================================
-    # "w" opens the file for writing.
-    #
-    # The file is automatically closed when the with block
-    # finishes.
+    # UTF-8 encoding allows the report to safely contain a wide
+    # range of characters.
     # ========================================================
 
-    with open(
-        filename,
-        "w"
-    ) as report:
+    try:
+
+        with open(
+            filename,
+            "w",
+            encoding="utf-8"
+        ) as report:
 
 
-        # ====================================================
-        # REPORT HEADER
-        # ====================================================
-        # Provides a consistent title at the beginning of
-        # every diagnostic report.
-        # ====================================================
+            # =================================================
+            # REPORT HEADER
+            # =================================================
 
-        report.write(
-            "=" * 50 + "\n"
-        )
+            report.write(
+                "=" * 50
+                + "\n"
+            )
 
-        report.write(
-            "             SECURE IT SUPPORT TOOLKIT\n"
-        )
+            report.write(
+                "             SECURE IT SUPPORT TOOLKIT\n"
+            )
 
-        report.write(
-            "                  SYSTEM REPORT\n"
-        )
+            report.write(
+                "                  SYSTEM REPORT\n"
+            )
 
-        report.write(
-            "=" * 50 + "\n\n"
-        )
-
-
-        # ====================================================
-        # GENERATED TIMESTAMP
-        # ====================================================
-        # Records exactly when the diagnostic report was
-        # generated.
-        # ====================================================
-
-        report.write(
-            f"Generated: "
-            f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}\n\n"
-        )
+            report.write(
+                "=" * 50
+                + "\n\n"
+            )
 
 
-        # ====================================================
-        # REPORT SECTIONS
-        # ====================================================
-        # report_data contains the diagnostic sections collected
-        # by main.py.
-        #
-        # Only modules that the user has actually run are added
-        # to report_data.
-        #
-        # This means the report can contain:
-        #
-        # System Information
-        # Network Information
-        # Firewall Status
-        # Disk Usage
-        # Process Monitor
-        # Network Diagnostics
-        # Security Checks
-        # Service Status
-        # System Health
-        #
-        # depending on which options the user selected.
-        # ====================================================
+            # =================================================
+            # GENERATED TIMESTAMP
+            # =================================================
 
-        for section, information in report_data.items():
+            report.write(
+                f"Generated: "
+                f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}"
+                f"\n\n"
+            )
 
 
-            # ------------------------------------------------
-            # SECTION HEADER
-            # ------------------------------------------------
-            # Each section receives a consistent visual header.
-            # ------------------------------------------------
+            # =================================================
+            # REPORT SECTIONS
+            # =================================================
+            # Each item in report_data represents a diagnostic
+            # section that has been run by the user.
+            #
+            # Examples:
+            #
+            # System Information
+            # Network Information
+            # Firewall Status
+            # System Health
+            # =================================================
+
+            for section, information in report_data.items():
+
+                report.write(
+                    "\n"
+                )
+
+                report.write(
+                    "=" * 50
+                    + "\n"
+                )
+
+                report.write(
+                    f"{section.upper()}\n"
+                )
+
+                report.write(
+                    "=" * 50
+                    + "\n\n"
+                )
+
+
+                # ------------------------------------------------
+                # Write diagnostic information.
+                # ------------------------------------------------
+
+                write_report_data(
+                    report,
+                    information
+                )
+
+
+            # =================================================
+            # REPORT FOOTER
+            # =================================================
 
             report.write(
                 "\n"
             )
 
             report.write(
-                "=" * 50 + "\n"
+                "=" * 50
+                + "\n"
             )
 
             report.write(
-                f"{section.upper()}\n"
+                "      GENERATED BY SECURE IT SUPPORT TOOLKIT\n"
             )
 
             report.write(
-                "=" * 50 + "\n\n"
+                "=" * 50
+                + "\n"
             )
 
 
-            # ------------------------------------------------
-            # WRITE SECTION DATA
-            # ------------------------------------------------
-            # Pass the section's data to the recursive writer.
-            # ------------------------------------------------
+    # ========================================================
+    # FILE WRITING ERROR
+    # ========================================================
 
-            write_report_data(
-                report,
-                information
-            )
+    except OSError as error:
 
-
-        # ====================================================
-        # REPORT FOOTER
-        # ====================================================
-        # Marks the end of the generated diagnostic report.
-        # ====================================================
-
-        report.write(
-            "\n"
+        print(
+            f"Unable to generate report: "
+            f"{error}"
         )
 
-        report.write(
-            "=" * 50 + "\n"
+        return None
+
+
+    # ========================================================
+    # SUCCESS
+    # ========================================================
+    # Return the generated filename.
+    # ========================================================
+
+    return filename
+
+
+# ============================================================
+# STANDALONE TEST
+# ============================================================
+# This section allows report_generator.py to be tested
+# independently from main.py.
+#
+# A small sample report is generated to confirm that:
+#
+# - The reports directory can be created.
+# - The report file can be written.
+# - Dictionaries are processed.
+# - Lists are processed.
+# - Nested structures are processed.
+# - Percentage formatting works.
+# ============================================================
+
+if __name__ == "__main__":
+
+    test_report_data = {
+
+        "System Information": {
+
+            "Operating System": "Windows",
+
+            "Architecture": "64-bit"
+
+        },
+
+
+        "Disk Usage": [
+
+            {
+
+                "Mount Point": "C:",
+
+                "Usage": 46.5,
+
+                "Status": "Healthy"
+
+            }
+
+        ],
+
+
+        "System Health": {
+
+            "Disk Health": [
+
+                {
+
+                    "Mount Point": "C:",
+
+                    "Usage": 46.5,
+
+                    "Status": "Healthy"
+
+                }
+
+            ],
+
+            "Firewall Health": {
+
+                "Domain": "Healthy",
+
+                "Private": "Healthy",
+
+                "Public": "Healthy"
+
+            },
+
+            "Overall System Health": "Warning"
+
+        }
+
+    }
+
+
+    print(
+        "Generating test diagnostic report..."
+    )
+
+
+    report_filename = generate_report(
+        test_report_data
+    )
+
+
+    if report_filename:
+
+        print(
+            "Diagnostic report generated successfully."
         )
 
-        report.write(
-            "      GENERATED BY SECURE IT SUPPORT TOOLKIT\n"
+        print(
+            f"Report: {report_filename}"
         )
 
-        report.write(
-            "=" * 50 + "\n"
+    else:
+
+        print(
+            "Diagnostic report could not be generated."
         )

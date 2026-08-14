@@ -1,77 +1,105 @@
 # ============================================================
 # SECURITY CHECKS MODULE
 # ============================================================
-# This module performs basic security checks on the local
+# This module performs basic security-related checks on the
 # computer.
 #
-# The checks currently include:
+# The checks include:
 #
-# - Administrator/root privilege detection
-# - Detection of listening network ports
-# - Identification of the process using each listening port
-# - Classification of whether a listening port is exposed
-#   only to localhost or potentially to the network
+# - Administrator privileges on Windows
+# - Root privileges on Linux/macOS
+# - Listening network ports
+# - Process associated with each listening port
+# - PID associated with each listening process
+# - Network exposure of each listening port
 #
-# The results are returned as a dictionary so they can be
-# displayed by main.py and included in diagnostic reports.
+# A listening port is classified as:
+#
+# Localhost:
+#     The service is only listening on the local computer.
+#
+# Network:
+#     The service is listening on a network-accessible address.
+#
+# The number of network-exposed ports is later used by
+# system_health.py to determine the security health of the
+# system.
+#
+# Error handling is important in this module because some
+# processes and network connections may be inaccessible due to
+# operating-system permissions or may terminate while the scan
+# is running.
+#
+# The results are returned as a dictionary so that they can be
+# displayed by main.py and included in the diagnostic report.
 # ============================================================
 
 
 # ============================================================
 # MODULE IMPORTS
 # ============================================================
+# The following modules provide the functionality required to
+# perform the security checks.
+# ============================================================
 
-# platform is used to identify the operating system so that
-# Windows and Unix-like systems can use the appropriate
-# privilege-checking method.
+
+# platform identifies the operating system.
 import platform
 
 
-# ctypes provides access to Windows system functions.
-#
-# It is used here to call Windows' IsUserAnAdmin function.
+# ctypes is used on Windows to determine whether the current
+# process has Administrator privileges.
 import ctypes
 
 
-# os provides access to operating-system functionality.
-#
-# On Linux and macOS, it is used to determine whether the
-# current process is running with root privileges.
+# os provides access to the effective user ID on Unix-based
+# operating systems such as Linux and macOS.
 import os
 
 
-# psutil provides access to network connections and running
-# processes.
+# psutil provides access to:
 #
-# It is used here to identify listening ports and the processes
-# associated with them.
+# - Network connections
+# - Listening ports
+# - Process information
+# - Process IDs
 import psutil
 
 
 # ============================================================
 # RUN SECURITY CHECKS
 # ============================================================
-# Performs the security checks and returns the collected
-# information.
+# Performs the security checks and returns the results.
 # ============================================================
 
 def run_security_checks():
 
-    # Dictionary used to store the security results.
+    # Dictionary used to store security information.
     security_information = {}
 
 
-    # Identify the operating system.
-    operating_system = platform.system()
+    # ========================================================
+    # DETERMINE OPERATING SYSTEM
+    # ========================================================
+
+    try:
+
+        operating_system = platform.system()
+
+    except Exception:
+
+        operating_system = "Unknown"
 
 
     # ========================================================
-    # WINDOWS ADMINISTRATOR PRIVILEGES
+    # CHECK ADMINISTRATOR / ROOT PRIVILEGES
     # ========================================================
-    # Windows provides the IsUserAnAdmin function for checking
-    # whether the current process has administrator privileges.
+    # Windows uses the Windows API to determine whether the
+    # current process has Administrator privileges.
     #
-    # ctypes is used to access this Windows API function.
+    # Linux and macOS use the effective user ID.
+    #
+    # UID 0 represents the root account.
     # ========================================================
 
     if operating_system == "Windows":
@@ -94,8 +122,6 @@ def run_security_checks():
                 ] = "No"
 
 
-        # If the Windows API call cannot be completed, report
-        # that the privilege level could not be determined.
         except Exception:
 
             security_information[
@@ -103,174 +129,234 @@ def run_security_checks():
             ] = "Unable to determine"
 
 
-    # ========================================================
-    # LINUX / macOS ROOT PRIVILEGES
-    # ========================================================
-    # Linux and macOS use the Unix-style user ID system.
-    #
-    # UID 0 represents the root account.
-    #
-    # os.geteuid() returns the effective user ID of the current
-    # process.
-    # ========================================================
-
     else:
 
-        if os.geteuid() == 0:
+        try:
+
+            if os.geteuid() == 0:
+
+                security_information[
+                    "Root Privileges"
+                ] = "Yes"
+
+            else:
+
+                security_information[
+                    "Root Privileges"
+                ] = "No"
+
+
+        except AttributeError:
 
             security_information[
                 "Root Privileges"
-            ] = "Yes"
+            ] = "Unable to determine"
 
-        else:
+
+        except Exception:
 
             security_information[
                 "Root Privileges"
-            ] = "No"
+            ] = "Unable to determine"
 
 
     # ========================================================
-    # LISTENING NETWORK PORTS
+    # LISTENING PORTS
     # ========================================================
-    # A listening port represents a network socket that is
-    # waiting for incoming connections.
+    # psutil.net_connections(kind="inet") retrieves active
+    # network connections using IPv4 and IPv6.
     #
-    # Listening services can be important during security and
-    # troubleshooting investigations because they identify
-    # services that may accept network connections.
+    # We are specifically interested in connections with the
+    # LISTEN status.
+    #
+    # These represent services waiting for incoming network
+    # connections.
     # ========================================================
 
     listening_ports = []
 
 
-    # psutil.net_connections(kind='inet') retrieves IPv4 and
-    # IPv6 network connections.
-    #
-    # Each connection can contain information such as:
-    #
-    # - Local address
-    # - Port
-    # - Connection status
-    # - Process ID
-    # ========================================================
+    try:
 
-    for connection in psutil.net_connections(
-        kind='inet'
-    ):
+        connections = psutil.net_connections(
+            kind="inet"
+        )
 
+    except psutil.AccessDenied:
 
-        # ====================================================
-        # IDENTIFY LISTENING CONNECTIONS
-        # ====================================================
-        # Only connections in the LISTEN state are relevant
-        # here because they are waiting for incoming network
-        # connections.
-        # ====================================================
+        security_information[
+            "Listening Ports"
+        ] = "Access Denied"
 
-        if connection.status == psutil.CONN_LISTEN:
+        return security_information
 
 
-            # Make sure a local address is available before
-            # attempting to process the connection.
+    except Exception:
 
-            if connection.laddr:
+        security_information[
+            "Listening Ports"
+        ] = "Unable to determine"
 
-
-                # Default values are used in case the process
-                # information cannot be retrieved.
-                process_name = "Unknown"
-                process_id = "Unknown"
-
-
-                # =================================================
-                # IDENTIFY ASSOCIATED PROCESS
-                # =================================================
-                # connection.pid identifies the process that owns
-                # the listening socket.
-                #
-                # This allows the toolkit to associate a network
-                # port with the application or service using it.
-                # =================================================
-
-                if connection.pid:
-
-                    process_id = connection.pid
-
-
-                    try:
-
-                        process = psutil.Process(
-                            connection.pid
-                        )
-
-                        process_name = process.name()
-
-
-                    # A process can terminate or become
-                    # inaccessible while the scan is running.
-                    except (
-                        psutil.NoSuchProcess,
-                        psutil.AccessDenied
-                    ):
-
-                        process_name = "Unknown"
-
-
-                # =================================================
-                # DETERMINE NETWORK EXPOSURE
-                # =================================================
-                # The local IP address determines where the
-                # service is listening.
-                #
-                # 127.0.0.1 and ::1 are loopback addresses.
-                # Services listening only on these addresses are
-                # accessible from the local machine but are not
-                # directly exposed through the network interface.
-                #
-                # Other addresses are classified as "Network"
-                # because they may accept connections from other
-                # devices, depending on firewall and routing rules.
-                # =================================================
-
-                address = connection.laddr.ip
-
-
-                if address in ("127.0.0.1", "::1"):
-
-                    exposure = "Localhost"
-
-                else:
-
-                    exposure = "Network"
-
-
-                # =================================================
-                # STORE LISTENING PORT INFORMATION
-                # =================================================
-                # Store the address, associated process, PID and
-                # exposure classification for later display and
-                # reporting.
-                # =================================================
-
-                listening_ports.append({
-
-                    "Address": (
-                        f"{address}:{connection.laddr.port}"
-                    ),
-
-                    "Process": process_name,
-
-                    "PID": process_id,
-
-                    "Exposure": exposure
-                })
+        return security_information
 
 
     # ========================================================
-    # STORE LISTENING PORT RESULTS
+    # PROCESS LISTENING CONNECTIONS
     # ========================================================
-    # Add the complete list of listening ports to the security
-    # information dictionary.
+
+    for connection in connections:
+
+        try:
+
+            # ------------------------------------------------
+            # ONLY PROCESS LISTENING CONNECTIONS
+            # ------------------------------------------------
+
+            if connection.status != psutil.CONN_LISTEN:
+
+                continue
+
+
+            # ------------------------------------------------
+            # MAKE SURE A LOCAL ADDRESS EXISTS
+            # ------------------------------------------------
+
+            if not connection.laddr:
+
+                continue
+
+
+            # =================================================
+            # DEFAULT PROCESS INFORMATION
+            # =================================================
+
+            process_name = "Unknown"
+            process_id = "Unknown"
+
+
+            # =================================================
+            # IDENTIFY PROCESS
+            # =================================================
+            # connection.pid identifies the process responsible
+            # for the listening network connection.
+            # =================================================
+
+            if connection.pid:
+
+                process_id = connection.pid
+
+
+                try:
+
+                    process = psutil.Process(
+                        connection.pid
+                    )
+
+                    process_name = process.name()
+
+
+                except (
+                    psutil.NoSuchProcess,
+                    psutil.AccessDenied,
+                    psutil.ZombieProcess
+                ):
+
+                    process_name = "Unknown"
+
+
+                except Exception:
+
+                    process_name = "Unknown"
+
+
+            # =================================================
+            # DETERMINE LISTENING ADDRESS
+            # =================================================
+
+            address = connection.laddr.ip
+
+
+            # =================================================
+            # DETERMINE EXPOSURE
+            # =================================================
+            # 127.0.0.1 and ::1 are loopback addresses.
+            #
+            # Services listening on these addresses are only
+            # accessible from the local computer.
+            #
+            # Other addresses are classified as Network because
+            # they may be accessible from another device.
+            # =================================================
+
+            if address in (
+                "127.0.0.1",
+                "::1"
+            ):
+
+                exposure = "Localhost"
+
+            else:
+
+                exposure = "Network"
+
+
+            # =================================================
+            # STORE LISTENING PORT
+            # =================================================
+
+            listening_ports.append({
+
+                "Address": (
+                    f"{address}:"
+                    f"{connection.laddr.port}"
+                ),
+
+                "Process": process_name,
+
+                "PID": process_id,
+
+                "Exposure": exposure
+
+            })
+
+
+        # =====================================================
+        # CONNECTION ERROR HANDLING
+        # =====================================================
+        # A connection may disappear while it is being
+        # processed. Ignore that individual connection and
+        # continue checking the remaining connections.
+        # =====================================================
+
+        except (
+            psutil.NoSuchProcess,
+            psutil.AccessDenied,
+            psutil.ZombieProcess
+        ):
+
+            continue
+
+
+        except (
+            AttributeError,
+            TypeError,
+            ValueError
+        ):
+
+            continue
+
+
+        except Exception:
+
+            continue
+
+
+    # ========================================================
+    # STORE LISTENING PORT INFORMATION
+    # ========================================================
+    # Even if no listening ports were found, an empty list is
+    # returned. This allows system_health.py to correctly
+    # identify the system as having no network-exposed ports.
     # ========================================================
 
     security_information[
@@ -279,10 +365,49 @@ def run_security_checks():
 
 
     # ========================================================
-    # RETURN SECURITY RESULTS
-    # ========================================================
-    # Return the completed security information to the calling
-    # program.
+    # RETURN SECURITY INFORMATION
     # ========================================================
 
     return security_information
+
+
+# ============================================================
+# STANDALONE TEST
+# ============================================================
+# Allows security_checks.py to be tested independently from
+# main.py.
+#
+# This section only runs when the module is executed directly.
+# ============================================================
+
+if __name__ == "__main__":
+
+    security_information = run_security_checks()
+
+
+    print("SECURITY CHECKS")
+    print("---------------")
+
+
+    for key, value in security_information.items():
+
+        if isinstance(value, list):
+
+            print(f"\n{key}:")
+            print("-" * 40)
+
+
+            for item in value:
+
+                for item_key, item_value in item.items():
+
+                    print(
+                        f"{item_key}: {item_value}"
+                    )
+
+                print()
+
+
+        else:
+
+            print(f"{key}: {value}")

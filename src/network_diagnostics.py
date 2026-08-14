@@ -1,7 +1,7 @@
 # ============================================================
 # NETWORK DIAGNOSTICS MODULE
 # ============================================================
-# This module performs several network troubleshooting checks.
+# This module performs several network diagnostic checks.
 #
 # The checks include:
 #
@@ -12,225 +12,259 @@
 # - Local IP address
 # - Default gateway
 #
-# The module uses different commands where required to support
-# Windows, Linux and macOS.
+# Windows, Linux and macOS use different commands for some
+# network diagnostics, so the appropriate command is selected
+# based on the operating system.
 #
 # The results are returned as a dictionary so that they can be
 # displayed by main.py and included in the diagnostic report.
+#
+# Error handling is included so that a failed diagnostic does
+# not cause the entire TechAssist application to stop.
 # ============================================================
 
 
 # ============================================================
 # MODULE IMPORTS
 # ============================================================
+# subprocess:
+#     Executes operating-system network commands.
+#
+# platform:
+#     Identifies the operating system.
+#
+# socket:
+#     Provides DNS resolution and IPv4 constants.
+#
+# psutil:
+#     Provides information about network interfaces.
+# ============================================================
 
-# subprocess is used to execute operating-system networking
-# commands such as ping, ipconfig, ip route and netstat.
 import subprocess
-
-
-# platform is used to identify the operating system so that
-# the appropriate networking commands can be selected.
 import platform
-
-
-# socket provides DNS resolution functionality and networking
-# constants such as AF_INET.
 import socket
-
-
-# psutil provides access to local network interface
-# information.
 import psutil
 
 
 # ============================================================
 # RUN NETWORK DIAGNOSTICS
 # ============================================================
-# Runs the complete set of network diagnostic checks and
-# returns the results as a dictionary.
+# Performs the network diagnostic checks and returns the
+# results as a dictionary.
 # ============================================================
 
 def run_network_diagnostics():
 
     network_information = {}
 
-    # Identify the operating system so that platform-specific
-    # commands can be used later in the function.
     operating_system = platform.system()
 
 
     # ========================================================
-    # INTERNET CONNECTIVITY
+    # CHECK INTERNET CONNECTIVITY
     # ========================================================
-    # Test whether the computer can reach Google's public DNS
-    # server at 8.8.8.8.
-    #
-    # A successful ping does not prove that every internet
-    # service is working, but it provides a useful basic
-    # connectivity test.
-    #
     # Windows uses:
     #
-    # ping -n 1
+    # ping -n 1 8.8.8.8
     #
     # Linux/macOS use:
     #
-    # ping -c 1
-    #
-    # because the command-line options differ between platforms.
+    # ping -c 1 8.8.8.8
     # ========================================================
 
     if operating_system == "Windows":
 
-        command = ["ping", "-n", "1", "8.8.8.8"]
+        command = [
+            "ping",
+            "-n",
+            "1",
+            "8.8.8.8"
+        ]
 
     else:
 
-        command = ["ping", "-c", "1", "8.8.8.8"]
+        command = [
+            "ping",
+            "-c",
+            "1",
+            "8.8.8.8"
+        ]
 
 
-    # Execute the ping command and capture its output so that
-    # latency and packet-loss information can be extracted.
-    result = subprocess.run(
-        command,
-        capture_output=True,
-        text=True
-    )
+    try:
 
-
-    # ========================================================
-    # ANALYSE INTERNET CONNECTIVITY
-    # ========================================================
-    # subprocess.run() provides a returncode.
-    #
-    # A return code of 0 indicates that the command completed
-    # successfully.
-    # ========================================================
-
-    if result.returncode == 0:
-
-        network_information["Internet Connectivity"] = "Connected"
-
-
-        # ====================================================
-        # WINDOWS PING LATENCY
-        # ====================================================
-        # Windows formats the final ping statistics differently
-        # from Linux, so the output needs to be parsed separately.
-        # ====================================================
-
-        if operating_system == "Windows":
-
-            for line in result.stdout.splitlines():
-
-                if "Average" in line:
-
-                    latency = line.split(
-                        "Average ="
-                    )[-1].strip()
-
-                    network_information["Ping Latency"] = latency
-
-                    break
-
-
-            # ------------------------------------------------
-            # WINDOWS PACKET LOSS
-            # ------------------------------------------------
-            # Extract the packet-loss percentage from the
-            # Windows ping summary.
-            # ------------------------------------------------
-
-            for line in result.stdout.splitlines():
-
-                if "Lost =" in line:
-
-                    packet_loss = (
-                        line.split("(")[1]
-                        .split(")")[0]
-                    )
-
-                    network_information["Packet Loss"] = packet_loss
-
-                    break
-
-
-        # ====================================================
-        # LINUX PING LATENCY AND PACKET LOSS
-        # ====================================================
-        # Linux formats ping statistics differently from
-        # Windows, so separate parsing is required.
-        # ====================================================
-
-        elif operating_system == "Linux":
-
-            # ------------------------------------------------
-            # Linux Ping Latency
-            # ------------------------------------------------
-
-            for line in result.stdout.splitlines():
-
-                if "time=" in line:
-
-                    latency = (
-                        line.split("time=")[1]
-                        .split()[0]
-                    )
-
-                    network_information["Ping Latency"] = (
-                        f"{latency} ms"
-                    )
-
-                    break
-
-
-            # ------------------------------------------------
-            # Linux Packet Loss
-            # ------------------------------------------------
-
-            for line in result.stdout.splitlines():
-
-                if "packet loss" in line:
-
-                    packet_loss = (
-                        line.split(",")[2]
-                        .strip()
-                        .replace(" packet loss", "")
-                    )
-
-                    network_information["Packet Loss"] = (
-                        packet_loss
-                    )
-
-                    break
-
-
-    # ========================================================
-    # INTERNET CONNECTION FAILED
-    # ========================================================
-    # If the ping command returned a non-zero exit code, the
-    # toolkit records the internet connection as disconnected.
-    # ========================================================
-
-    else:
-
-        network_information["Internet Connectivity"] = (
-            "Disconnected"
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            timeout=10
         )
 
 
+    except FileNotFoundError:
+
+        network_information["Internet Connectivity"] = (
+            "Command Unavailable"
+        )
+
+        result = None
+
+
+    except subprocess.TimeoutExpired:
+
+        network_information["Internet Connectivity"] = (
+            "Command Timed Out"
+        )
+
+        result = None
+
+
+    except Exception as error:
+
+        network_information["Internet Connectivity"] = (
+            "Unable to determine"
+        )
+
+        result = None
+
+
     # ========================================================
-    # DNS RESOLUTION
+    # PROCESS PING RESULT
     # ========================================================
-    # Test whether the computer can resolve a hostname to an
-    # IP address.
+
+    if result is not None:
+
+        if result.returncode == 0:
+
+            network_information["Internet Connectivity"] = (
+                "Connected"
+            )
+
+
+            # =================================================
+            # WINDOWS PING INFORMATION
+            # =================================================
+
+            if operating_system == "Windows":
+
+                for line in result.stdout.splitlines():
+
+                    if "Average" in line:
+
+                        try:
+
+                            latency = (
+                                line
+                                .split("Average =")[-1]
+                                .strip()
+                            )
+
+                            network_information[
+                                "Ping Latency"
+                            ] = latency
+
+                        except Exception:
+
+                            pass
+
+                        break
+
+
+                for line in result.stdout.splitlines():
+
+                    if "Lost =" in line:
+
+                        try:
+
+                            packet_loss = (
+                                line
+                                .split("(")[1]
+                                .split(")")[0]
+                            )
+
+                            network_information[
+                                "Packet Loss"
+                            ] = packet_loss
+
+                        except (IndexError, ValueError):
+
+                            pass
+
+                        break
+
+
+            # =================================================
+            # LINUX / macOS PING INFORMATION
+            # =================================================
+
+            elif (
+                operating_system == "Linux"
+                or operating_system == "Darwin"
+            ):
+
+                for line in result.stdout.splitlines():
+
+                    if "time=" in line:
+
+                        try:
+
+                            latency = (
+                                line
+                                .split("time=")[1]
+                                .split()[0]
+                            )
+
+                            network_information[
+                                "Ping Latency"
+                            ] = f"{latency} ms"
+
+                        except (IndexError, ValueError):
+
+                            pass
+
+                        break
+
+
+                for line in result.stdout.splitlines():
+
+                    if "packet loss" in line:
+
+                        try:
+
+                            packet_loss = (
+                                line
+                                .split(",")[2]
+                                .strip()
+                                .replace(
+                                    " packet loss",
+                                    ""
+                                )
+                            )
+
+                            network_information[
+                                "Packet Loss"
+                            ] = packet_loss
+
+                        except (IndexError, ValueError):
+
+                            pass
+
+                        break
+
+
+        else:
+
+            network_information["Internet Connectivity"] = (
+                "Disconnected"
+            )
+
+
+    # ========================================================
+    # CHECK DNS RESOLUTION
+    # ========================================================
+    # Attempts to resolve www.google.com.
     #
-    # This helps distinguish between general connectivity
-    # problems and DNS-specific problems.
-    #
-    # google.com is used as a simple, widely available hostname
-    # for the test.
+    # Successful resolution indicates that DNS is working.
     # ========================================================
 
     try:
@@ -239,148 +273,238 @@ def run_network_diagnostics():
 
         network_information["DNS Resolution"] = "Working"
 
+
     except socket.gaierror:
 
         network_information["DNS Resolution"] = "Failed"
 
 
+    except Exception:
+
+        network_information["DNS Resolution"] = (
+            "Unable to determine"
+        )
+
+
     # ========================================================
-    # LOCAL IP ADDRESS
+    # FIND LOCAL IP ADDRESS
     # ========================================================
-    # Examine the local network interfaces and find an IPv4
-    # address that can be used for normal network communication.
+    # Searches network interfaces for a usable IPv4 address.
     #
-    # Loopback addresses (127.x.x.x) are excluded because they
-    # refer to the local computer itself.
-    #
-    # Link-local/APIPA addresses (169.254.x.x) are also excluded
-    # because they generally indicate that the device has not
-    # obtained a normal address from DHCP.
+    # Loopback addresses and APIPA addresses are ignored.
     # ========================================================
 
-    for interface, addresses in psutil.net_if_addrs().items():
+    try:
 
-        for address in addresses:
+        adapters = psutil.net_if_addrs()
 
-            if address.family == socket.AF_INET:
+    except Exception:
 
-                if (
-                    not address.address.startswith("127.")
-                    and not address.address.startswith("169.254.")
-                ):
-
-                    network_information["Local IP Address"] = (
-                        address.address
-                    )
-
-                    break
+        adapters = {}
 
 
-        # Stop searching once a suitable IPv4 address has been
-        # found.
-        if "Local IP Address" in network_information:
+    for interface, addresses in adapters.items():
 
-            break
+        try:
+
+            for address in addresses:
+
+                if address.family == socket.AF_INET:
+
+                    if (
+                        not address.address.startswith("127.")
+                        and not address.address.startswith(
+                            "169.254."
+                        )
+                    ):
+
+                        network_information[
+                            "Local IP Address"
+                        ] = address.address
+
+                        break
+
+
+            if "Local IP Address" in network_information:
+
+                break
+
+
+        except Exception:
+
+            continue
 
 
     # ========================================================
-    # DEFAULT GATEWAY - WINDOWS
+    # FIND DEFAULT GATEWAY - WINDOWS
     # ========================================================
-    # Windows provides network configuration information through
-    # the ipconfig command.
-    #
-    # The default gateway is extracted from the command output.
+    # Windows uses ipconfig to retrieve the default gateway.
     # ========================================================
 
     if operating_system == "Windows":
 
-        result = subprocess.run(
-            ["ipconfig"],
-            capture_output=True,
-            text=True
-        )
+        try:
 
-        for line in result.stdout.splitlines():
+            result = subprocess.run(
+                ["ipconfig"],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
 
-            if "Default Gateway" in line:
 
-                gateway = line.split(":")[-1].strip()
+            for line in result.stdout.splitlines():
 
-                if gateway:
+                if "Default Gateway" in line:
 
-                    network_information["Default Gateway"] = (
-                        gateway
+                    gateway = (
+                        line
+                        .split(":")[-1]
+                        .strip()
                     )
 
-                    break
+                    if gateway:
+
+                        network_information[
+                            "Default Gateway"
+                        ] = gateway
+
+                        break
+
+
+        except (
+            FileNotFoundError,
+            subprocess.TimeoutExpired
+        ):
+
+            pass
+
+        except Exception:
+
+            pass
 
 
     # ========================================================
-    # DEFAULT GATEWAY - LINUX
-    # ========================================================
-    # Linux commonly provides routing information through:
-    #
-    # ip route
-    #
-    # A line containing "default via" identifies the default
-    # gateway.
+    # FIND DEFAULT GATEWAY - LINUX
     # ========================================================
 
     elif operating_system == "Linux":
 
-        result = subprocess.run(
-            ["ip", "route"],
-            capture_output=True,
-            text=True
-        )
+        try:
 
-        for line in result.stdout.splitlines():
+            result = subprocess.run(
+                ["ip", "route"],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
 
-            if "default via" in line:
 
-                network_information["Default Gateway"] = (
-                    line.split()[2]
-                )
+            for line in result.stdout.splitlines():
 
-                break
+                if "default via" in line:
+
+                    try:
+
+                        network_information[
+                            "Default Gateway"
+                        ] = line.split()[2]
+
+                    except IndexError:
+
+                        pass
+
+                    break
+
+
+        except (
+            FileNotFoundError,
+            subprocess.TimeoutExpired
+        ):
+
+            pass
+
+        except Exception:
+
+            pass
 
 
     # ========================================================
-    # DEFAULT GATEWAY - macOS
-    # ========================================================
-    # macOS can provide routing information using netstat.
-    #
-    # The routing table is examined to identify the default
-    # gateway.
+    # FIND DEFAULT GATEWAY - macOS
     # ========================================================
 
     elif operating_system == "Darwin":
 
-        result = subprocess.run(
-            ["netstat", "-rn"],
-            capture_output=True,
-            text=True
-        )
+        try:
 
-        for line in result.stdout.splitlines():
+            result = subprocess.run(
+                ["netstat", "-rn"],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
 
-            if line.startswith("gateway"):
 
-                network_information["Default Gateway"] = (
-                    line.split(":")[1].strip()
-                )
+            for line in result.stdout.splitlines():
 
-                break
+                if line.startswith("gateway"):
+
+                    try:
+
+                        network_information[
+                            "Default Gateway"
+                        ] = (
+                            line
+                            .split(":")[1]
+                            .strip()
+                        )
+
+                    except (IndexError, ValueError):
+
+                        pass
+
+                    break
+
+
+        except (
+            FileNotFoundError,
+            subprocess.TimeoutExpired
+        ):
+
+            pass
+
+        except Exception:
+
+            pass
 
 
     # ========================================================
-    # RETURN RESULTS
+    # RETURN NETWORK INFORMATION
     # ========================================================
-    # Return all collected network diagnostic information to
-    # the calling program.
-    #
-    # main.py can then display these results and add them to
-    # report_data for the diagnostic report.
+    # Returns all successfully collected diagnostic results.
     # ========================================================
 
     return network_information
+
+
+# ============================================================
+# STANDALONE TEST
+# ============================================================
+# Allows this module to be tested independently from main.py.
+#
+# This section only executes when the file itself is run.
+# ============================================================
+
+if __name__ == "__main__":
+
+    print("Running network diagnostics...")
+    print()
+
+    network_information = run_network_diagnostics()
+
+    print("NETWORK DIAGNOSTICS")
+    print("-------------------")
+
+    for item, value in network_information.items():
+
+        print(f"{item}: {value}")

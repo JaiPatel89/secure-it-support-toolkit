@@ -1,103 +1,139 @@
 # ============================================================
 # DISK USAGE MODULE
 # ============================================================
-# This module collects storage information for the disks and
-# partitions detected on the system.
+# This module collects information about the storage devices
+# and filesystem partitions available on the computer.
 #
 # The information collected includes:
 #
-# - Mount point
+# - Mount Point
 # - Device
-# - Filesystem type
-# - Total storage
-# - Used storage
-# - Free storage
-# - Percentage of storage currently in use
+# - Filesystem Type
+# - Total Storage
+# - Used Storage
+# - Free Storage
+# - Storage Usage Percentage
 #
-# The module also contains handling for WSL-specific mount
-# points and permission-restricted filesystems.
+# The usage percentage is stored as a numeric value rather than
+# including the "%" symbol. This allows the value to be used
+# by other parts of the toolkit, such as system_health.py,
+# where numerical thresholds are used to determine disk health.
 #
-# The results are returned as a list of dictionaries so that
-# multiple drives or partitions can be represented.
+# The report_generator.py module is responsible for adding the
+# "%" symbol when the value is written to a diagnostic report.
+#
+# On Linux/WSL systems, certain internal mount points are
+# excluded because they do not represent normal user storage.
+#
+# Error handling is used so that inaccessible partitions or
+# unexpected filesystem information do not cause the entire
+# toolkit to stop running.
 # ============================================================
 
 
 # ============================================================
 # MODULE IMPORTS
 # ============================================================
+# The following modules provide the functionality required to
+# collect disk information and identify the operating system.
+# ============================================================
 
-# psutil provides access to disk partitions and disk usage.
+
+# psutil provides access to disk partitions and disk usage
+# information.
 import psutil
 
 
-# platform is used to determine the operating system so that
-# Linux-specific WSL mount points can be excluded.
+# platform identifies the operating system so that platform-
+# specific filesystem exclusions can be applied.
 import platform
 
 
 # ============================================================
 # GET DISK USAGE
 # ============================================================
-# Collects storage information for available disks and
+# Collects disk usage information for accessible filesystem
 # partitions.
+#
+# The function returns a list of dictionaries, with each
+# dictionary representing one filesystem partition.
 # ============================================================
 
 def get_disk_usage():
 
-    # List used to store information about each detected
-    # partition.
+    # List used to store information about each accessible
+    # filesystem partition.
     disk_information = []
 
 
-    # Retrieve the partitions currently detected by the
-    # operating system.
-    partitions = psutil.disk_partitions()
+    # ========================================================
+    # RETRIEVE PARTITIONS
+    # ========================================================
+    # psutil.disk_partitions() retrieves the filesystem
+    # partitions available on the system.
+    #
+    # If the information cannot be retrieved, an empty list is
+    # returned rather than allowing the application to crash.
+    # ========================================================
+
+    try:
+
+        partitions = psutil.disk_partitions()
+
+    except Exception:
+
+        return disk_information
 
 
-    # Identify the operating system.
-    operating_system = platform.system()
+    # Identify the operating system so that platform-specific
+    # exclusions can be applied.
+    try:
+
+        operating_system = platform.system()
+
+    except Exception:
+
+        operating_system = "Unknown"
 
 
     # ========================================================
     # PROCESS EACH PARTITION
     # ========================================================
+    # Each partition is processed individually.
+    #
+    # This means that a problem accessing one partition does
+    # not prevent information from being collected from other
+    # partitions.
+    # ========================================================
 
     for partition in partitions:
 
-
         # ====================================================
-        # WSL MOUNT POINT FILTERING
+        # SKIP WSL INTERNAL MOUNT POINTS
         # ====================================================
-        # When the toolkit is running under Linux/WSL,
-        # psutil can detect internal WSL and Docker mount
-        # points that are not useful for normal disk reporting.
+        # WSL can expose internal mount points that are not
+        # useful when reporting normal disk usage.
         #
-        # These are excluded to keep the diagnostic output
-        # focused on useful storage devices.
+        # These are excluded from the results.
         # ====================================================
 
         if operating_system == "Linux":
 
-            # Exclude WSLg internal mount points.
             if partition.mountpoint.startswith("/mnt/wslg"):
+
                 continue
 
 
-            # Exclude Docker's internal storage mount point.
             if partition.mountpoint.startswith("/var/lib/docker"):
+
                 continue
 
 
         # ====================================================
-        # GET PARTITION USAGE
+        # RETRIEVE PARTITION USAGE
         # ====================================================
-        # psutil.disk_usage() retrieves the storage statistics
-        # for the current partition.
-        #
-        # Some filesystems may not be accessible due to
-        # permissions. A PermissionError is therefore handled
-        # so that one inaccessible partition does not cause the
-        # entire diagnostic program to fail.
+        # psutil.disk_usage() retrieves the total, used and
+        # available storage for the selected mount point.
         # ====================================================
 
         try:
@@ -106,75 +142,169 @@ def get_disk_usage():
                 partition.mountpoint
             )
 
+
+        # ----------------------------------------------------
+        # PERMISSION ERROR
+        # ----------------------------------------------------
+        # Some partitions may not be accessible by the current
+        # user. These partitions are skipped.
+        # ----------------------------------------------------
+
         except PermissionError:
 
-            # Skip partitions that cannot be accessed.
+            continue
+
+
+        # ----------------------------------------------------
+        # FILESYSTEM / OS ERROR
+        # ----------------------------------------------------
+        # An OSError can occur if the filesystem is unavailable
+        # or the mount point cannot be accessed.
+        # ----------------------------------------------------
+
+        except OSError:
+
+            continue
+
+
+        # ----------------------------------------------------
+        # UNEXPECTED ERROR
+        # ----------------------------------------------------
+        # Prevents an unexpected problem with one partition
+        # from terminating the entire disk diagnostic.
+        # ----------------------------------------------------
+
+        except Exception:
+
             continue
 
 
         # ====================================================
         # CONVERT STORAGE VALUES
         # ====================================================
-        # psutil reports storage sizes in bytes.
+        # psutil returns storage values in bytes.
         #
-        # Dividing by 1024^3 converts bytes into gigabytes.
-        #
-        # round(..., 2) limits the displayed values to two
-        # decimal places.
+        # The toolkit converts these values into gigabytes
+        # using 1024^3 bytes per gigabyte.
         # ====================================================
 
-        total_gb = round(
-            usage.total / (1024 ** 3),
-            2
-        )
+        try:
 
-        used_gb = round(
-            usage.used / (1024 ** 3),
-            2
-        )
+            total_gb = round(
+                usage.total / (1024 ** 3),
+                2
+            )
 
-        free_gb = round(
-            usage.free / (1024 ** 3),
-            2
-        )
+            used_gb = round(
+                usage.used / (1024 ** 3),
+                2
+            )
+
+            free_gb = round(
+                usage.free / (1024 ** 3),
+                2
+            )
+
+
+        except Exception:
+
+            continue
 
 
         # ====================================================
         # STORE PARTITION INFORMATION
         # ====================================================
-        # Each partition is represented as a dictionary.
+        # Usage remains numeric so that system_health.py can
+        # compare it against numerical thresholds.
         #
-        # A list of dictionaries allows the module to return
-        # information for multiple drives or partitions.
+        # Example:
+        #
+        # 46.5
+        #
+        # Rather than:
+        #
+        # "46.5 %"
+        #
+        # The percentage symbol is added later by the report
+        # generator when required.
         # ====================================================
 
-        disk_information.append({
+        try:
 
-            "Mount Point": partition.mountpoint,
+            disk_information.append({
 
-            "Device": partition.device,
+                "Mount Point": partition.mountpoint,
 
-            "Filesystem Type": partition.fstype,
+                "Device": partition.device,
 
-            "Total Space": f"{total_gb} GB",
+                "Filesystem Type": partition.fstype,
 
-            "Used Space": f"{used_gb} GB",
+                "Total Space": f"{total_gb} GB",
 
-            "Free Space": f"{free_gb} GB",
+                "Used Space": f"{used_gb} GB",
 
-            # psutil already provides the usage percentage,
-            # so the numeric value is stored directly here.
-            #
-            # main.py and report_generator.py add the "%"
-            # symbol when displaying the value.
-            "Usage": usage.percent
-        })
+                "Free Space": f"{free_gb} GB",
+
+                "Usage": usage.percent
+
+            })
+
+
+        except Exception:
+
+            continue
 
 
     # ========================================================
-    # RETURN RESULTS
+    # RETURN DISK INFORMATION
     # ========================================================
-    # Return the completed list to the calling program.
+    # Returns the completed list to the calling program.
+    #
+    # main.py can then:
+    #
+    # - Display the disk information
+    # - Store it in report_data
+    # - Pass it to system_health.py
+    # - Include it in the diagnostic report
     # ========================================================
 
     return disk_information
+
+
+# ============================================================
+# STANDALONE TEST
+# ============================================================
+# This allows disk_usage.py to be tested independently from
+# the main TechAssist application.
+#
+# The code below only runs when this file is executed directly.
+# It does not run when the module is imported by main.py.
+# ============================================================
+
+if __name__ == "__main__":
+
+    disk_information = get_disk_usage()
+
+
+    print("DISK USAGE INFORMATION")
+    print("----------------------")
+
+
+    for index, drive in enumerate(
+        disk_information,
+        start=1
+    ):
+
+        print(f"\nDrive {index}:")
+        print("----------")
+
+
+        for key, value in drive.items():
+
+            if key == "Usage":
+
+                print(f"{key}: {value} %")
+
+            else:
+
+                print(f"{key}: {value}")

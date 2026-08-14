@@ -2,112 +2,128 @@
 # PROCESS MONITOR MODULE
 # ============================================================
 # This module collects information about currently running
-# processes on the system.
+# processes on the computer.
 #
-# For each accessible process, it records:
+# The information collected includes:
 #
-# - Process name
+# - Process Name
 # - Process ID (PID)
-# - Process status
-# - CPU usage
-# - Memory usage
+# - Process Status
+# - CPU Usage
+# - Memory Usage
 #
-# The processes are sorted by memory usage and the top 10 are
-# returned.
+# Processes are sorted by memory usage and the top 10 processes
+# are returned.
 #
-# This can be useful during IT troubleshooting when investigating
-# high memory usage, resource consumption or an unresponsive
-# system.
+# This can help identify processes that are consuming a large
+# amount of system memory and may be useful during IT support
+# troubleshooting.
+#
+# Some processes may not be accessible because of permissions
+# or because they terminate while the scan is running.
+# These situations are handled so that one inaccessible process
+# does not stop the entire process monitor.
+#
+# The information is returned as a list of dictionaries so that
+# it can be displayed by main.py and included in the diagnostic
+# report.
 # ============================================================
 
 
 # ============================================================
 # MODULE IMPORTS
 # ============================================================
+# The following module provides access to running processes
+# and system resource information.
+# ============================================================
 
-# psutil provides access to running processes and their
-# resource usage.
+
+# psutil provides access to process information including:
+#
+# - Process names
+# - PIDs
+# - Process status
+# - CPU usage
+# - Memory usage
+#
+# psutil is a third-party Python library.
 import psutil
 
 
 # ============================================================
 # GET PROCESSES
 # ============================================================
-# Collects information about currently running processes and
-# returns the 10 processes using the most memory.
+# Collects information about running processes and returns the
+# 10 processes using the most memory.
 # ============================================================
 
 def get_processes():
 
-    # List used to store information about each process.
+    # List used to store information about each accessible
+    # process.
     process_information = []
 
 
     # ========================================================
-    # ENUMERATE RUNNING PROCESSES
+    # PROCESS ITERATION
     # ========================================================
-    # psutil.process_iter() provides an efficient way to
-    # iterate through the processes currently running on
-    # the system.
+    # psutil.process_iter() allows the toolkit to retrieve
+    # information about running processes.
     #
-    # The fields requested here are:
-    #
-    # - pid          Process ID
-    # - name         Process name
-    # - status       Current process status
-    # - memory_info  Memory usage information
-    #
-    # Requesting only the required fields avoids collecting
-    # unnecessary process information.
+    # Only the fields required by this module are requested.
     # ========================================================
 
-    for process in psutil.process_iter(
-        {
-            'pid',
-            'name',
-            'status',
-            'memory_info'
-        }
-    ):
+    try:
+
+        processes = psutil.process_iter(
+            {
+                "pid",
+                "name",
+                "status",
+                "memory_info"
+            }
+        )
+
+    except Exception:
+
+        return process_information
 
 
-        # ====================================================
-        # PROCESS INFORMATION
-        # ====================================================
-        # Access to individual processes can fail while the
-        # program is running.
-        #
-        # For example:
-        #
-        # - A process may terminate during the scan.
-        # - The current user may not have permission to inspect
-        #   a process.
-        # - A process may be a zombie process.
-        #
-        # These situations are handled below so that one
-        # inaccessible process does not stop the entire monitor.
-        # ====================================================
+    # ========================================================
+    # PROCESS EACH RUNNING PROCESS
+    # ========================================================
+    # Each process is handled individually.
+    #
+    # This is important because processes can terminate while
+    # the scan is running or may not be accessible due to
+    # permissions.
+    # ========================================================
+
+    for process in processes:
 
         try:
-
 
             # =================================================
             # MEMORY USAGE
             # =================================================
-            # psutil reports RSS memory in bytes.
-            #
             # RSS (Resident Set Size) represents the amount of
-            # physical memory currently associated with the
+            # physical memory currently being used by the
             # process.
             #
-            # Dividing by 1024^2 converts bytes into megabytes.
-            #
-            # The result is rounded to two decimal places.
+            # psutil reports memory in bytes, so it is converted
+            # into megabytes.
             # =================================================
 
+            memory_info = process.info["memory_info"]
+
+
+            if memory_info is None:
+
+                continue
+
+
             memory_mb = round(
-                process.info['memory_info'].rss
-                / (1024 ** 2),
+                memory_info.rss / (1024 ** 2),
                 2
             )
 
@@ -115,13 +131,11 @@ def get_processes():
             # =================================================
             # CPU USAGE
             # =================================================
-            # cpu_percent() provides the process's CPU usage.
+            # cpu_percent() returns the percentage of CPU time
+            # being used by the process.
             #
-            # interval=None means the call does not wait for a
-            # fixed measurement interval.
-            #
-            # The returned value is formatted with a percentage
-            # sign before being added to the results.
+            # interval=None allows the call to return without
+            # deliberately waiting.
             # =================================================
 
             cpu_percent = process.cpu_percent(
@@ -132,32 +146,40 @@ def get_processes():
             # =================================================
             # STORE PROCESS INFORMATION
             # =================================================
-            # Add the process information to the results list.
-            # =================================================
 
             process_information.append({
 
-                "Name": process.info['name'],
+                "Name": process.info["name"],
 
-                "PID": process.info['pid'],
+                "PID": process.info["pid"],
 
-                "Status": process.info['status'],
+                "Status": process.info["status"],
 
                 "CPU Usage": f"{cpu_percent}%",
 
                 "Memory Usage (MB)": memory_mb
+
             })
 
 
-        # ====================================================
-        # HANDLE PROCESS ACCESS ERRORS
-        # ====================================================
-        # Processes can disappear or become inaccessible while
-        # they are being inspected.
+        # =====================================================
+        # PROCESS ERROR HANDLING
+        # =====================================================
+        # These exceptions can occur normally while monitoring
+        # processes.
         #
-        # These exceptions are ignored and the monitor simply
-        # continues with the next process.
-        # ====================================================
+        # NoSuchProcess:
+        #     The process ended before its information could
+        #     be collected.
+        #
+        # AccessDenied:
+        #     The current user does not have permission to view
+        #     the process.
+        #
+        # ZombieProcess:
+        #     The process has terminated but still exists in
+        #     the process table.
+        # =====================================================
 
         except (
             psutil.NoSuchProcess,
@@ -168,28 +190,81 @@ def get_processes():
             continue
 
 
+        # =====================================================
+        # GENERAL ERROR HANDLING
+        # =====================================================
+        # Protects the scan against an unexpected problem with
+        # an individual process.
+        # =====================================================
+
+        except Exception:
+
+            continue
+
+
     # ========================================================
-    # SORT PROCESSES BY MEMORY USAGE
+    # SORT PROCESSES
     # ========================================================
-    # Sort the collected processes using their memory usage.
+    # Processes are sorted from highest to lowest memory usage.
     #
-    # reverse=True places the highest memory-consuming process
-    # first.
+    # The numeric memory value is used for sorting so that:
+    #
+    # 100 MB
+    #
+    # correctly appears above:
+    #
+    # 20 MB
     # ========================================================
 
-    process_information.sort(
-        key=lambda x: x["Memory Usage (MB)"],
-        reverse=True
-    )
+    try:
+
+        process_information.sort(
+            key=lambda x: x["Memory Usage (MB)"],
+            reverse=True
+        )
+
+    except Exception:
+
+        return process_information
 
 
     # ========================================================
     # RETURN TOP 10 PROCESSES
     # ========================================================
-    # Return only the first 10 processes after sorting.
-    #
-    # This keeps the toolkit's output manageable while
-    # highlighting the processes consuming the most memory.
+    # Only the 10 processes using the most memory are returned.
     # ========================================================
 
     return process_information[:10]
+
+
+# ============================================================
+# STANDALONE TEST
+# ============================================================
+# This allows process_monitor.py to be tested independently
+# from the main TechAssist application.
+#
+# The code below only runs when this file is executed directly.
+# It does not run when the module is imported by main.py.
+# ============================================================
+
+if __name__ == "__main__":
+
+    process_information = get_processes()
+
+
+    print("TOP 10 PROCESSES BY MEMORY USAGE")
+    print("--------------------------------")
+
+
+    for index, process in enumerate(
+        process_information,
+        start=1
+    ):
+
+        print(f"\nProcess {index}:")
+        print("-------------")
+
+
+        for key, value in process.items():
+
+            print(f"{key}: {value}")

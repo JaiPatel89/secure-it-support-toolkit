@@ -1,195 +1,271 @@
 # ============================================================
 # SYSTEM HEALTH MODULE
 # ============================================================
-# This module interprets diagnostic information collected by
-# the other toolkit modules and converts it into simple health
-# statuses.
+# This module evaluates the results produced by the other
+# diagnostic modules and converts them into an overall health
+# assessment.
 #
-# The module currently evaluates:
+# The module checks:
 #
-# - Disk usage
-# - Firewall status
-# - Administrator / root privileges
-# - Network-exposed listening ports
-# - Important system services
+# - Disk Health
+# - Firewall Health
+# - Security Health
+# - Service Health
+# - Overall System Health
 #
-# Each area is classified as:
+# Each area is assigned a status:
 #
-# Healthy
-# Warning
-# Critical
+#     Healthy
+#     Warning
+#     Critical
 #
-# The individual results are then combined to produce an
-# overall system health status.
+# The overall system health is determined using the following
+# priority:
 #
-# IMPORTANT:
-# The modules imported below collect the raw diagnostic data.
-# This module is responsible for interpreting that data.
+#     Critical
+#         ↓
+#     Warning
+#         ↓
+#     Healthy
+#
+# Therefore:
+#
+# - If any critical issue exists, overall health is Critical.
+# - If no critical issue exists but a warning exists, overall
+#   health is Warning.
+# - If no warnings or critical issues exist, overall health is
+#   Healthy.
+#
+# This module does not perform the original diagnostic checks
+# itself. Instead, it receives information from the other
+# modules and evaluates their results.
+#
+# The module can also be run independently for testing.
 # ============================================================
 
 
 # ============================================================
 # MODULE IMPORTS
 # ============================================================
+# These functions are imported so that the module can be
+# tested independently when system_health.py is run directly.
+#
+# main.py passes diagnostic information directly into the
+# health-check functions when the application is running.
+# ============================================================
 
-# Used when this module is executed directly to collect disk
-# usage information.
 from disk_usage import get_disk_usage
-
-
-# Used to collect the current firewall status.
 from firewall_status import get_firewall_status
-
-
-# Used to collect security information such as privileges and
-# listening network ports.
 from security_checks import run_security_checks
-
-
-# Used to collect the status of important operating system
-# services.
 from service_status import get_service_status
 
 
 # ============================================================
-# DISK HEALTH
+# CHECK DISK HEALTH
 # ============================================================
-# Evaluates disk usage and assigns a health status based on
-# the percentage of storage currently being used.
+# Evaluates disk usage for each detected drive.
 #
-# Thresholds:
+# Usage thresholds:
 #
-# Below 80%  -> Healthy
-# 80-89%     -> Warning
-# 90%+       -> Critical
+#     0% - 79%:
+#         Healthy
+#
+#     80% - 89%:
+#         Warning
+#
+#     90% and above:
+#         Critical
+#
+# The function returns a list because a computer may contain
+# multiple drives or mount points.
 # ============================================================
 
 def check_disk_health(disk_information):
 
-    # List used to store the health result for each drive.
     disk_health = []
 
 
-    # Evaluate each detected drive or partition.
     for drive in disk_information:
 
-        # Retrieve the numeric disk usage percentage.
-        usage = drive["Usage"]
+        try:
+
+            usage = drive["Usage"]
 
 
-        # 90% or more storage usage is considered critical.
-        if usage >= 90:
+            # ------------------------------------------------
+            # CRITICAL DISK USAGE
+            # ------------------------------------------------
 
-            status = "Critical"
+            if usage >= 90:
 
-
-        # 80% to 89% storage usage generates a warning.
-        elif usage >= 80:
-
-            status = "Warning"
+                status = "Critical"
 
 
-        # Anything below 80% is considered healthy.
-        else:
+            # ------------------------------------------------
+            # WARNING DISK USAGE
+            # ------------------------------------------------
 
-            status = "Healthy"
+            elif usage >= 80:
 
-
-        # Store the relevant information for this drive.
-        disk_health.append({
-
-            "Mount Point": drive["Mount Point"],
-
-            "Usage": usage,
-
-            "Status": status
-        })
+                status = "Warning"
 
 
-    # Return the health results for all drives.
+            # ------------------------------------------------
+            # HEALTHY DISK USAGE
+            # ------------------------------------------------
+
+            else:
+
+                status = "Healthy"
+
+
+            disk_health.append({
+
+                "Mount Point": drive["Mount Point"],
+
+                "Usage": usage,
+
+                "Status": status
+
+            })
+
+
+        except (
+            KeyError,
+            TypeError,
+            ValueError
+        ):
+
+            # ------------------------------------------------
+            # Invalid disk information should not stop the
+            # entire health check.
+            # ------------------------------------------------
+
+            continue
+
+
     return disk_health
 
 
 # ============================================================
-# FIREWALL HEALTH
+# CHECK FIREWALL HEALTH
 # ============================================================
 # Evaluates the firewall status returned by firewall_status.py.
 #
-# A firewall that is enabled is considered Healthy.
+# Expected healthy values include:
 #
-# A firewall that is disabled or has another unexpected status
-# is considered Critical.
+#     On
+#     Active
+#
+# Anything else is treated as Critical.
+#
+# This is intentionally conservative because a firewall that
+# cannot be confirmed as active should not be considered
+# healthy.
 # ============================================================
 
 def check_firewall_health(firewall_information):
 
-    # Dictionary used to store the health status for each
-    # firewall profile.
     firewall_health = {}
 
 
-    # Check each firewall profile or firewall status.
+    if not isinstance(
+        firewall_information,
+        dict
+    ):
+
+        return firewall_health
+
+
     for profile, status in firewall_information.items():
 
-        # "on" is used by Windows, while "active" is used by
-        # Linux/macOS in the current firewall module.
-        if status.lower() in ["on", "active"]:
+        try:
 
-            firewall_health[profile] = "Healthy"
+            if status.lower() in [
+                "on",
+                "active"
+            ]:
 
-
-        # Anything other than an enabled firewall is considered
-        # critical.
-        else:
-
-            firewall_health[profile] = "Critical"
+                firewall_health[
+                    profile
+                ] = "Healthy"
 
 
-    # Return the firewall health results.
+            else:
+
+                firewall_health[
+                    profile
+                ] = "Critical"
+
+
+        except (
+            AttributeError,
+            TypeError
+        ):
+
+            firewall_health[
+                profile
+            ] = "Critical"
+
+
     return firewall_health
 
 
 # ============================================================
-# SECURITY HEALTH
+# CHECK SECURITY HEALTH
 # ============================================================
-# Evaluates security-related information collected by
-# security_checks.py.
+# Evaluates security-related information.
 #
-# The current checks include:
+# The function checks:
 #
-# - Administrator/root privileges
-# - Network-exposed listening ports
+# 1. Administrator / Root privileges
+# 2. Network-exposed listening ports
+#
+# Administrator/root privileges:
+#
+#     Not elevated:
+#         Healthy
+#
+#     Elevated:
+#         Warning
+#
+# Listening ports:
+#
+#     No network-exposed ports:
+#         Healthy
+#
+#     One or more network-exposed ports:
+#         Warning
+#
+# Localhost-only services are not counted as network-exposed.
 # ============================================================
 
 def check_security_health(security_information):
 
-    # Dictionary used to store the security health results.
     security_health = {}
 
 
     # ========================================================
     # ADMINISTRATOR / ROOT PRIVILEGES
     # ========================================================
-    # Running with elevated privileges is not automatically a
-    # security problem, but the toolkit flags it as a warning
-    # because unnecessary administrative/root privileges can
-    # increase the potential impact of a compromised process.
-    # ========================================================
 
-    if "Administrator Privileges" in security_information:
+    if (
+        "Administrator Privileges"
+        in security_information
+    ):
 
-        # A standard non-administrator Windows session is
-        # considered healthy for this particular check.
-        if security_information[
-            "Administrator Privileges"
-        ] == "No":
+        if (
+            security_information[
+                "Administrator Privileges"
+            ]
+            == "No"
+        ):
 
             security_health[
                 "Administrator Privileges"
             ] = "Healthy"
 
 
-        # Administrator privileges generate a warning.
         else:
 
             security_health[
@@ -197,20 +273,23 @@ def check_security_health(security_information):
             ] = "Warning"
 
 
-    # Linux and macOS report root privileges instead.
-    elif "Root Privileges" in security_information:
+    elif (
+        "Root Privileges"
+        in security_information
+    ):
 
-        # A non-root session is considered healthy.
-        if security_information[
-            "Root Privileges"
-        ] == "No":
+        if (
+            security_information[
+                "Root Privileges"
+            ]
+            == "No"
+        ):
 
             security_health[
                 "Root Privileges"
             ] = "Healthy"
 
 
-        # Root privileges generate a warning.
         else:
 
             security_health[
@@ -219,13 +298,7 @@ def check_security_health(security_information):
 
 
     # ========================================================
-    # LISTENING NETWORK PORTS
-    # ========================================================
-    # Count the listening ports that the security module has
-    # classified as being exposed to the network.
-    #
-    # Localhost-only services are not counted as network-exposed
-    # because they are bound to the local machine.
+    # LISTENING PORTS
     # ========================================================
 
     listening_ports = security_information.get(
@@ -234,19 +307,41 @@ def check_security_health(security_information):
     )
 
 
-    # Counter for network-exposed listening ports.
     network_exposed = 0
 
 
-    # Examine every listening port.
-    for port in listening_ports:
+    # --------------------------------------------------------
+    # Handle unexpected error strings returned by the security
+    # module.
+    # --------------------------------------------------------
 
-        if port.get("Exposure") == "Network":
+    if isinstance(
+        listening_ports,
+        list
+    ):
 
-            network_exposed += 1
+        for port in listening_ports:
+
+            if not isinstance(
+                port,
+                dict
+            ):
+
+                continue
 
 
-    # No network-exposed ports are considered healthy.
+            if (
+                port.get("Exposure")
+                == "Network"
+            ):
+
+                network_exposed += 1
+
+
+    # ========================================================
+    # DETERMINE NETWORK EXPOSURE HEALTH
+    # ========================================================
+
     if network_exposed == 0:
 
         security_health[
@@ -254,92 +349,96 @@ def check_security_health(security_information):
         ] = "Healthy"
 
 
-    # Any network-exposed ports currently generate a warning.
     else:
 
         security_health[
             "Network Exposed Ports"
         ] = (
-            f"Warning - {network_exposed} exposed"
+            f"Warning - "
+            f"{network_exposed} exposed"
         )
 
 
-    # Return the completed security health results.
     return security_health
 
 
 # ============================================================
-# SERVICE HEALTH
+# CHECK SERVICE HEALTH
 # ============================================================
-# Converts service statuses into health statuses.
+# Evaluates the status of important operating-system services.
 #
-# Running service -> Healthy
-# Stopped service -> Warning
+# Running:
 #
-# Other statuses are passed through unchanged.
+#     Healthy
+#
+# Stopped:
+#
+#     Warning
+#
+# Other statuses are returned unchanged so that information
+# such as "Command Unavailable" or "Not Found" is not hidden.
 # ============================================================
 
 def check_service_health(service_information):
 
-    # Dictionary used to store the health result for each
-    # service.
     service_health = {}
 
 
-    # Retrieve the service dictionary from the collected
-    # service information.
-    #
-    # An empty dictionary is used if the expected key does not
-    # exist.
     services = service_information.get(
         "Services",
         {}
     )
 
 
-    # Evaluate every service.
+    if not isinstance(
+        services,
+        dict
+    ):
+
+        return service_health
+
+
     for service, status in services.items():
 
-        # A running service is considered healthy.
         if status == "Running":
 
-            service_health[service] = "Healthy"
+            service_health[
+                service
+            ] = "Healthy"
 
 
-        # A stopped service generates a warning.
         elif status == "Stopped":
 
-            service_health[service] = "Warning"
+            service_health[
+                service
+            ] = "Warning"
 
 
-        # Preserve unexpected statuses rather than making an
-        # assumption about them.
         else:
 
-            service_health[service] = status
+            service_health[
+                service
+            ] = status
 
 
-    # Return the service health results.
     return service_health
 
 
 # ============================================================
 # CALCULATE OVERALL SYSTEM HEALTH
 # ============================================================
-# Combines the results from all health checks and determines
-# the overall condition of the system.
+# Combines all health categories into one overall status.
 #
 # Priority:
 #
-# Critical
-#    ↓
-# Warning
-#    ↓
-# Healthy
+#     Critical > Warning > Healthy
 #
-# Therefore, a single Critical result makes the overall system
-# Critical, while one or more Warnings make it Warning if
-# there are no Critical results.
+# A status beginning with "Warning" is treated as a Warning.
+#
+# This is necessary because security health can contain values
+# such as:
+#
+#     Warning - 27 exposed
 # ============================================================
 
 def calculate_overall_health(
@@ -349,7 +448,6 @@ def calculate_overall_health(
     service_health
 ):
 
-    # List used to collect every individual health status.
     statuses = []
 
 
@@ -357,63 +455,90 @@ def calculate_overall_health(
     # DISK HEALTH
     # ========================================================
 
-    for drive in disk_health:
+    if isinstance(
+        disk_health,
+        list
+    ):
 
-        statuses.append(
-            drive["Status"]
-        )
+        for drive in disk_health:
+
+            if isinstance(
+                drive,
+                dict
+            ):
+
+                status = drive.get(
+                    "Status"
+                )
+
+                if status:
+
+                    statuses.append(
+                        status
+                    )
 
 
     # ========================================================
     # FIREWALL HEALTH
     # ========================================================
 
-    for status in firewall_health.values():
+    if isinstance(
+        firewall_health,
+        dict
+    ):
 
-        statuses.append(status)
+        for status in firewall_health.values():
+
+            statuses.append(
+                status
+            )
 
 
     # ========================================================
     # SECURITY HEALTH
     # ========================================================
-    # Network exposed ports contain additional information,
-    # for example:
-    #
-    # "Warning - 27 exposed"
-    #
-    # This needs to be converted into the standard "Warning"
-    # status before it is added to the overall status list.
-    # ========================================================
 
-    for status in security_health.values():
+    if isinstance(
+        security_health,
+        dict
+    ):
 
-        if status.startswith("Warning"):
+        for status in security_health.values():
 
-            statuses.append("Warning")
+            if (
+                isinstance(status, str)
+                and status.startswith("Warning")
+            ):
 
-        else:
+                statuses.append(
+                    "Warning"
+                )
 
-            statuses.append(status)
+            else:
+
+                statuses.append(
+                    status
+                )
 
 
     # ========================================================
     # SERVICE HEALTH
     # ========================================================
 
-    for status in service_health.values():
+    if isinstance(
+        service_health,
+        dict
+    ):
 
-        statuses.append(status)
+        for status in service_health.values():
+
+            statuses.append(
+                status
+            )
 
 
     # ========================================================
     # DETERMINE OVERALL STATUS
-    # ========================================================
-    # Critical has the highest priority.
-    #
-    # If there are no Critical results, Warning has the next
-    # highest priority.
-    #
-    # If neither exists, the system is considered Healthy.
     # ========================================================
 
     if "Critical" in statuses:
@@ -432,21 +557,19 @@ def calculate_overall_health(
 
 
 # ============================================================
-# STANDALONE MODULE TEST
+# STANDALONE TEST
 # ============================================================
-# This section allows system_health.py to be tested directly.
+# This section allows system_health.py to be tested without
+# running the complete TechAssist application.
 #
-# It is only executed when this file is run directly.
-#
-# When system_health.py is imported by main.py, this section
-# does not execute.
+# It collects fresh diagnostic information from the other
+# modules and evaluates each category.
 # ============================================================
 
 if __name__ == "__main__":
 
-
     # ========================================================
-    # DISK HEALTH TEST
+    # DISK HEALTH
     # ========================================================
 
     disk_information = get_disk_usage()
@@ -481,7 +604,7 @@ if __name__ == "__main__":
 
 
     # ========================================================
-    # FIREWALL HEALTH TEST
+    # FIREWALL HEALTH
     # ========================================================
 
     firewall_information = get_firewall_status()
@@ -503,7 +626,7 @@ if __name__ == "__main__":
 
 
     # ========================================================
-    # SECURITY HEALTH TEST
+    # SECURITY HEALTH
     # ========================================================
 
     security_information = run_security_checks()
@@ -526,7 +649,7 @@ if __name__ == "__main__":
 
 
     # ========================================================
-    # SERVICE HEALTH TEST
+    # SERVICE HEALTH
     # ========================================================
 
     service_information = get_service_status()
@@ -549,14 +672,19 @@ if __name__ == "__main__":
 
 
     # ========================================================
-    # OVERALL SYSTEM HEALTH TEST
+    # OVERALL SYSTEM HEALTH
     # ========================================================
 
     overall_status = calculate_overall_health(
+
         disk_results,
+
         firewall_results,
+
         security_results,
+
         service_results
+
     )
 
 
