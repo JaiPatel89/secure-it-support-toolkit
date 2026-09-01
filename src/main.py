@@ -97,6 +97,12 @@ from system_health import (
     calculate_overall_health
 )
 
+# ============================================================
+# APPLICATION INFORMATION
+# ============================================================
+
+APP_NAME = "TechAssist"
+APP_VERSION = "1.0.0"
 
 # ============================================================
 # REPORT DATA
@@ -130,7 +136,11 @@ def display_menu():
     )
 
     print(
-        "             TechAssist"
+        f"             {APP_NAME}"
+    )
+
+    print(
+        f"          Version {APP_VERSION}"
     )
 
     print(

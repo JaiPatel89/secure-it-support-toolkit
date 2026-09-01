@@ -153,6 +153,29 @@ def test_main_menu():
 
 
 # ============================================================
+# TEST APPLICATION VERSION
+# ============================================================
+# Verifies that the TechAssist application displays its
+# current version when the main menu is shown.
+# ============================================================
+
+def test_application_version():
+
+    result = run_main(
+        "11\n"
+    )
+
+
+    assert result.returncode == 0
+
+
+    assert (
+        "Version 1.0.0"
+        in result.stdout
+    )
+
+
+# ============================================================
 # TEST EXIT OPTION
 # ============================================================
 # Verifies that selecting option 11 exits the application
