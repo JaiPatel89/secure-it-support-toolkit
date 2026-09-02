@@ -152,6 +152,17 @@ def test_main_menu():
     assert "11. Exit" in result.stdout
 
 
+def test_version_command():
+    result = subprocess.run(
+        [sys.executable, "src/main.py", "--version"],
+        capture_output=True,
+        text=True
+    )
+
+    assert result.returncode == 0
+    assert result.stdout.strip() == "TechAssist version 1.0.0"
+
+
 # ============================================================
 # TEST APPLICATION VERSION
 # ============================================================

@@ -78,6 +78,8 @@
 #     calculates the overall system health.
 # ============================================================
 
+import sys
+
 from firewall_status import get_firewall_status
 from system_info import get_system_information
 from network_tools import get_network_information
@@ -97,12 +99,17 @@ from system_health import (
     calculate_overall_health
 )
 
+
 # ============================================================
 # APPLICATION INFORMATION
 # ============================================================
 
 APP_NAME = "TechAssist"
 APP_VERSION = "1.0.0"
+
+if len(sys.argv) > 1 and sys.argv[1] == "--version":
+    print(f"{APP_NAME} version {APP_VERSION}")
+    sys.exit(0)
 
 # ============================================================
 # REPORT DATA
