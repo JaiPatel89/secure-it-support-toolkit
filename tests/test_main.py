@@ -163,6 +163,19 @@ def test_version_command():
     assert result.stdout.strip() == "TechAssist version 1.0.0"
 
 
+def test_help_command():
+    result = subprocess.run(
+        [sys.executable, "src/main.py", "--help"],
+        capture_output=True,
+        text=True
+    )
+
+    assert result.returncode == 0
+    assert "TechAssist - IT Support Diagnostic Toolkit" in result.stdout
+    assert "python src/main.py --version" in result.stdout
+    assert "python src/main.py --help" in result.stdout    
+
+
 # ============================================================
 # TEST APPLICATION VERSION
 # ============================================================

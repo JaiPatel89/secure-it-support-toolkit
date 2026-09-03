@@ -111,6 +111,17 @@ if len(sys.argv) > 1 and sys.argv[1] == "--version":
     print(f"{APP_NAME} version {APP_VERSION}")
     sys.exit(0)
 
+if len(sys.argv) > 1 and sys.argv[1] == "--help":
+    print(f"""
+{APP_NAME} - IT Support Diagnostic Toolkit
+
+Usage:
+  python src/main.py              Start TechAssist
+  python src/main.py --version    Display version information
+  python src/main.py --help       Display this help message
+""")
+    sys.exit(0)
+
 # ============================================================
 # REPORT DATA
 # ============================================================
