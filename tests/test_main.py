@@ -173,7 +173,18 @@ def test_help_command():
     assert result.returncode == 0
     assert "TechAssist - IT Support Diagnostic Toolkit" in result.stdout
     assert "python src/main.py --version" in result.stdout
-    assert "python src/main.py --help" in result.stdout    
+    assert "python src/main.py --help" in result.stdout
+
+def test_invalid_command():
+    result = subprocess.run(
+        [sys.executable, "src/main.py", "--banana"],
+        capture_output=True,
+        text=True
+    )
+
+    assert result.returncode == 1
+    assert "Unknown option: --banana" in result.stdout
+    assert "python src/main.py --help" in result.stdout  
 
 
 # ============================================================

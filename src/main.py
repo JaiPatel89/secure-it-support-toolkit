@@ -122,6 +122,11 @@ Usage:
 """)
     sys.exit(0)
 
+if len(sys.argv) > 1:
+    print(f"Unknown option: {sys.argv[1]}")
+    print("Use 'python src/main.py --help' for available options.")
+    sys.exit(1)
+
 # ============================================================
 # REPORT DATA
 # ============================================================
