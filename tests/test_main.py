@@ -187,6 +187,20 @@ def test_invalid_command():
     assert "python src/main.py --help" in result.stdout  
 
 
+def test_diagnose_command():
+    result = subprocess.run(
+        [sys.executable, "src/main.py", "--diagnose"],
+        capture_output=True,
+        text=True
+    )
+
+    assert result.returncode == 0
+    assert "TechAssist - Automatic Diagnostic Mode" in result.stdout
+    assert "[1/9] Collecting system information..." in result.stdout
+    assert "[9/9] Checking overall system health..." in result.stdout
+    assert "Automatic diagnostics complete." in result.stdout
+
+
 # ============================================================
 # TEST APPLICATION VERSION
 # ============================================================

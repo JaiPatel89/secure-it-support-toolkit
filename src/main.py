@@ -107,25 +107,6 @@ from system_health import (
 APP_NAME = "TechAssist"
 APP_VERSION = "1.0.0"
 
-if len(sys.argv) > 1 and sys.argv[1] == "--version":
-    print(f"{APP_NAME} version {APP_VERSION}")
-    sys.exit(0)
-
-if len(sys.argv) > 1 and sys.argv[1] == "--help":
-    print(f"""
-{APP_NAME} - IT Support Diagnostic Toolkit
-
-Usage:
-  python src/main.py              Start TechAssist
-  python src/main.py --version    Display version information
-  python src/main.py --help       Display this help message
-""")
-    sys.exit(0)
-
-if len(sys.argv) > 1:
-    print(f"Unknown option: {sys.argv[1]}")
-    print("Use 'python src/main.py --help' for available options.")
-    sys.exit(1)
 
 # ============================================================
 # REPORT DATA
@@ -213,6 +194,98 @@ def display_menu():
     print(
         "11. Exit"
     )
+
+
+def run_automatic_diagnostics():
+    """Run all TechAssist diagnostic checks automatically."""
+
+    print(f"\n{APP_NAME} - Automatic Diagnostic Mode")
+    print("=" * 40)
+
+    automatic_report = {}
+
+    print("\n[1/9] Collecting system information...")
+    automatic_report["System Information"] = get_system_information()
+
+    print("[2/9] Collecting network information...")
+    automatic_report["Network Information"] = get_network_information()
+
+    print("[3/9] Checking firewall status...")
+    automatic_report["Firewall Status"] = get_firewall_status()
+
+    print("[4/9] Checking disk usage...")
+    automatic_report["Disk Usage"] = get_disk_usage()
+
+    print("[5/9] Checking running processes...")
+    automatic_report["Process Monitor"] = get_processes()
+
+    print("[6/9] Running network diagnostics...")
+    automatic_report["Network Diagnostics"] = run_network_diagnostics()
+
+    print("[7/9] Running security checks...")
+    automatic_report["Security Checks"] = run_security_checks()
+
+    print("[8/9] Checking services...")
+    automatic_report["Service Status"] = get_service_status()
+
+    print("[9/9] Checking overall system health...")
+
+    disk_health = check_disk_health(
+        automatic_report["Disk Usage"]
+    )
+
+    firewall_health = check_firewall_health(
+        automatic_report["Firewall Status"]
+    )
+
+    security_health = check_security_health(
+        automatic_report["Security Checks"]
+    )
+
+    service_health = check_service_health(
+        automatic_report["Service Status"]
+    )
+
+    automatic_report["System Health"] = {
+        "Disk Health": disk_health,
+        "Firewall Health": firewall_health,
+        "Security Health": security_health,
+        "Service Health": service_health,
+        "Overall System Health": calculate_overall_health(
+            disk_health,
+            firewall_health,
+            security_health,
+            service_health
+        )
+    }
+
+    print("\nAutomatic diagnostics complete.")
+
+    return automatic_report
+
+if len(sys.argv) > 1 and sys.argv[1] == "--version":
+    print(f"{APP_NAME} version {APP_VERSION}")
+    sys.exit(0)
+
+if len(sys.argv) > 1 and sys.argv[1] == "--help":
+    print(f"""
+{APP_NAME} - IT Support Diagnostic Toolkit
+
+Usage:
+  python src/main.py              Start TechAssist
+  python src/main.py --version    Display version information
+  python src/main.py --help       Display this help message
+""")
+    sys.exit(0)
+
+if len(sys.argv) > 1 and sys.argv[1] == "--diagnose":
+    run_automatic_diagnostics()
+    sys.exit(0)
+
+if len(sys.argv) > 1:
+    print(f"Unknown option: {sys.argv[1]}")
+    print("Use 'python src/main.py --help' for available options.")
+    sys.exit(1)
 
 
 # ============================================================
