@@ -261,6 +261,19 @@ def run_automatic_diagnostics():
 
     print("\nAutomatic diagnostics complete.")
 
+    try:
+        report_filename = generate_report(automatic_report)
+
+        if report_filename:
+            print()
+            print("Diagnostic report generated successfully.")
+            print(f"Report: {report_filename}")
+        else:
+            print("Diagnostic report could not be generated.")
+
+    except Exception as error:
+        print(f"Unable to generate diagnostic report: {error}")
+
     return automatic_report
 
 if len(sys.argv) > 1 and sys.argv[1] == "--version":

@@ -199,6 +199,8 @@ def test_diagnose_command():
     assert "[1/9] Collecting system information..." in result.stdout
     assert "[9/9] Checking overall system health..." in result.stdout
     assert "Automatic diagnostics complete." in result.stdout
+    assert "Diagnostic report generated successfully." in result.stdout
+    assert "Report:" in result.stdout
 
 
 # ============================================================
