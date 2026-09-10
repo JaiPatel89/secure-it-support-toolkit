@@ -99,6 +99,10 @@ from system_health import (
     calculate_overall_health
 )
 
+from logging_config import (
+    configure_logging,
+    get_logger
+)
 
 # ============================================================
 # APPLICATION INFORMATION
@@ -107,6 +111,16 @@ from system_health import (
 APP_NAME = "TechAssist"
 APP_VERSION = "1.0.0"
 
+configure_logging()
+
+logger = get_logger(
+    __name__
+)
+
+logger.info(
+    f"{APP_NAME} started - "
+    f"version {APP_VERSION}"
+)
 
 # ============================================================
 # REPORT DATA
