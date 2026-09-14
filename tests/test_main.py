@@ -280,7 +280,7 @@ def test_invalid_menu_option():
 # TEST SYSTEM INFORMATION
 # ============================================================
 # Verifies that option 1 successfully launches the system
-# information module.
+# information module and records the diagnostic activity.
 # ============================================================
 
 def test_system_information_option():
@@ -304,6 +304,36 @@ def test_system_information_option():
     assert "Hostname" in result.stdout
 
     assert "Architecture" in result.stdout
+
+
+    # --------------------------------------------------------
+    # The diagnostic activity should be recorded in the
+    # TechAssist log.
+    # --------------------------------------------------------
+
+    log_file = (
+        Path("logs")
+        / "techassist.log"
+    )
+
+
+    assert log_file.exists()
+
+
+    log_contents = log_file.read_text(
+        encoding="utf-8"
+    )
+
+
+    assert (
+        "System Information diagnostic started"
+        in log_contents
+    )
+
+    assert (
+        "System Information diagnostic completed"
+        in log_contents
+    )
 
 
 # ============================================================

@@ -342,25 +342,29 @@ while choice != "11":
         "Choose an option: "
     )
 
-
     # ========================================================
     # OPTION 1 - SYSTEM INFORMATION
     # ========================================================
     # Collects information about the computer's operating
     # system, processor, memory and storage.
+    #
+    # Logging records when the diagnostic starts and
+    # completes successfully.
     # ========================================================
 
     if choice == "1":
 
         try:
 
-            information = get_system_information()
+            logger.info(
+                "System Information diagnostic started"
+            )
 
+            information = get_system_information()
 
             report_data[
                 "System Information"
             ] = information
-
 
             for item, value in information.items():
 
@@ -368,14 +372,21 @@ while choice != "11":
                     f"{item}: {value}"
                 )
 
+            logger.info(
+                "System Information diagnostic completed"
+            )
 
         except Exception as error:
+
+            logger.error(
+                f"System Information diagnostic failed: "
+                f"{error}"
+            )
 
             print(
                 f"Unable to retrieve system information: "
                 f"{error}"
             )
-
 
     # ========================================================
     # OPTION 2 - NETWORK INFORMATION
