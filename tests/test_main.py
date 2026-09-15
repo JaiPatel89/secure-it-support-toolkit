@@ -340,7 +340,7 @@ def test_system_information_option():
 # TEST NETWORK INFORMATION
 # ============================================================
 # Verifies that option 2 successfully launches the network
-# information module.
+# information module and records the diagnostic activity.
 # ============================================================
 
 def test_network_information_option():
@@ -354,9 +354,44 @@ def test_network_information_option():
     assert result.returncode == 0
 
 
+    # --------------------------------------------------------
+    # The output should contain information produced by the
+    # network information module.
+    # --------------------------------------------------------
+
     assert (
         "Adapter:"
         in result.stdout
+    )
+
+
+    # --------------------------------------------------------
+    # The diagnostic activity should be recorded in the
+    # TechAssist log.
+    # --------------------------------------------------------
+
+    log_file = (
+        Path("logs")
+        / "techassist.log"
+    )
+
+
+    assert log_file.exists()
+
+
+    log_contents = log_file.read_text(
+        encoding="utf-8"
+    )
+
+
+    assert (
+        "Network Information diagnostic started"
+        in log_contents
+    )
+
+    assert (
+        "Network Information diagnostic completed"
+        in log_contents
     )
 
 

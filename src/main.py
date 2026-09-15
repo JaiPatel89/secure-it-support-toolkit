@@ -388,31 +388,35 @@ while choice != "11":
                 f"{error}"
             )
 
-    # ========================================================
+       # ========================================================
     # OPTION 2 - NETWORK INFORMATION
     # ========================================================
     # Displays the network adapters detected by the toolkit,
     # along with their IP and MAC addresses.
+    #
+    # Logging records when the diagnostic starts and
+    # completes successfully.
     # ========================================================
 
     elif choice == "2":
 
         try:
 
-            information = get_network_information()
+            logger.info(
+                "Network Information diagnostic started"
+            )
 
+            information = get_network_information()
 
             report_data[
                 "Network Information"
             ] = information
-
 
             for adapter, details in information.items():
 
                 print(
                     f"Adapter: {adapter}"
                 )
-
 
                 for detail_name, detail_value in details.items():
 
@@ -421,8 +425,16 @@ while choice != "11":
                         f"{detail_value}"
                     )
 
+            logger.info(
+                "Network Information diagnostic completed"
+            )
 
         except Exception as error:
+
+            logger.error(
+                f"Network Information diagnostic failed: "
+                f"{error}"
+            )
 
             print(
                 f"Unable to retrieve network information: "
