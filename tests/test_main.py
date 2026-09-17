@@ -399,7 +399,7 @@ def test_network_information_option():
 # TEST FIREWALL STATUS
 # ============================================================
 # Verifies that option 3 successfully launches the firewall
-# status module.
+# status module and records the diagnostic activity.
 # ============================================================
 
 def test_firewall_status_option():
@@ -434,6 +434,36 @@ def test_firewall_status_option():
         or
         "Public"
         in result.stdout
+    )
+
+
+    # --------------------------------------------------------
+    # The diagnostic activity should be recorded in the
+    # TechAssist log.
+    # --------------------------------------------------------
+
+    log_file = (
+        Path("logs")
+        / "techassist.log"
+    )
+
+
+    assert log_file.exists()
+
+
+    log_contents = log_file.read_text(
+        encoding="utf-8"
+    )
+
+
+    assert (
+        "Firewall Status diagnostic started"
+        in log_contents
+    )
+
+    assert (
+        "Firewall Status diagnostic completed"
+        in log_contents
     )
 
 

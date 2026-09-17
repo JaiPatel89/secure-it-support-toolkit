@@ -388,7 +388,7 @@ while choice != "11":
                 f"{error}"
             )
 
-       # ========================================================
+    # ========================================================
     # OPTION 2 - NETWORK INFORMATION
     # ========================================================
     # Displays the network adapters detected by the toolkit,
@@ -454,19 +454,24 @@ while choice != "11":
     #     Public
     #
     # Linux/macOS report the firewall as Active or Inactive.
+    #
+    # Logging records when the diagnostic starts and
+    # completes successfully.
     # ========================================================
 
     elif choice == "3":
 
         try:
 
-            information = get_firewall_status()
+            logger.info(
+                "Firewall Status diagnostic started"
+            )
 
+            information = get_firewall_status()
 
             report_data[
                 "Firewall Status"
             ] = information
-
 
             for item, value in information.items():
 
@@ -474,8 +479,16 @@ while choice != "11":
                     f"{item}: {value}"
                 )
 
+            logger.info(
+                "Firewall Status diagnostic completed"
+            )
 
         except Exception as error:
+
+            logger.error(
+                f"Firewall Status diagnostic failed: "
+                f"{error}"
+            )
 
             print(
                 f"Unable to retrieve firewall status: "
