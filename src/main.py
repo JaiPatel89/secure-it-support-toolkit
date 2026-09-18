@@ -502,19 +502,24 @@ while choice != "11":
     # Displays storage information for detected drives.
     #
     # Usage is displayed with a percentage sign.
+    #
+    # Logging records when the diagnostic starts and
+    # completes successfully.
     # ========================================================
 
     elif choice == "4":
 
         try:
 
-            information = get_disk_usage()
+            logger.info(
+                "Disk Usage diagnostic started"
+            )
 
+            information = get_disk_usage()
 
             report_data[
                 "Disk Usage"
             ] = information
-
 
             print()
             print(
@@ -524,7 +529,6 @@ while choice != "11":
             print(
                 "----------------------"
             )
-
 
             for index, drive in enumerate(
                 information,
@@ -539,7 +543,6 @@ while choice != "11":
                 print(
                     "----------"
                 )
-
 
                 for key, value in drive.items():
 
@@ -557,14 +560,21 @@ while choice != "11":
                             f"{value}"
                         )
 
+            logger.info(
+                "Disk Usage diagnostic completed"
+            )
 
         except Exception as error:
+
+            logger.error(
+                f"Disk Usage diagnostic failed: "
+                f"{error}"
+            )
 
             print(
                 f"Unable to retrieve disk usage: "
                 f"{error}"
             )
-
 
     # ========================================================
     # OPTION 5 - PROCESS MONITOR

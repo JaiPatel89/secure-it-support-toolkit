@@ -471,7 +471,7 @@ def test_firewall_status_option():
 # TEST DISK USAGE
 # ============================================================
 # Verifies that option 4 successfully launches the disk usage
-# module.
+# module and records the diagnostic activity.
 # ============================================================
 
 def test_disk_usage_option():
@@ -485,9 +485,44 @@ def test_disk_usage_option():
     assert result.returncode == 0
 
 
+    # --------------------------------------------------------
+    # The output should contain information produced by the
+    # disk usage module.
+    # --------------------------------------------------------
+
     assert (
         "Disk Usage Information:"
         in result.stdout
+    )
+
+
+    # --------------------------------------------------------
+    # The diagnostic activity should be recorded in the
+    # TechAssist log.
+    # --------------------------------------------------------
+
+    log_file = (
+        Path("logs")
+        / "techassist.log"
+    )
+
+
+    assert log_file.exists()
+
+
+    log_contents = log_file.read_text(
+        encoding="utf-8"
+    )
+
+
+    assert (
+        "Disk Usage diagnostic started"
+        in log_contents
+    )
+
+    assert (
+        "Disk Usage diagnostic completed"
+        in log_contents
     )
 
 
