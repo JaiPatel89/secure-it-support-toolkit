@@ -352,11 +352,49 @@ def run_security_checks():
 
 
     # ========================================================
-    # STORE LISTENING PORT INFORMATION
+    # SUMMARISE LISTENING PORTS
     # ========================================================
-    # Even if no listening ports were found, an empty list is
-    # returned. This allows system_health.py to correctly
-    # identify the system as having no network-exposed ports.
+    # Count the listening ports and group them by their
+    # detected listening address.
+    #
+    # Network-bound listeners may be reachable from other
+    # devices, but this check does not confirm accessibility.
+    # ========================================================
+
+    total_listening_ports = len(listening_ports)
+
+    localhost_listeners = sum(
+        1
+        for port in listening_ports
+        if port["Exposure"] == "Localhost"
+    )
+
+    network_bound_listeners = sum(
+        1
+        for port in listening_ports
+        if port["Exposure"] == "Network"
+    )
+
+
+    # ========================================================
+    # STORE SUMMARY INFORMATION
+    # ========================================================
+
+    security_information[
+        "Total Listening Ports"
+    ] = total_listening_ports
+
+    security_information[
+        "Localhost Listeners"
+    ] = localhost_listeners
+
+    security_information[
+        "Network-Bound Listeners"
+    ] = network_bound_listeners
+
+
+    # ========================================================
+    # STORE LISTENING PORT DETAILS
     # ========================================================
 
     security_information[
