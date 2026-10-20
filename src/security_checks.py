@@ -66,6 +66,74 @@ import os
 import psutil
 
 
+
+# ============================================================
+# COMMON NETWORK PORTS
+# ============================================================
+# Maps common network ports to their typical services and
+# explains why they may warrant review.
+#
+# These descriptions provide guidance only. A listed port
+# is not automatically a security vulnerability.
+# ============================================================
+
+COMMON_PORTS = {
+
+    22: {
+        "Service": "SSH",
+        "Review": "Check whether remote command-line access is required."
+    },
+
+    135: {
+        "Service": "Windows RPC",
+        "Review": "Check whether the service needs network access."
+    },
+
+    139: {
+        "Service": "NetBIOS Session Service",
+        "Review": "Check whether legacy file and printer sharing is required."
+    },
+
+    445: {
+        "Service": "SMB",
+        "Review": "Check file-sharing requirements and network restrictions."
+    },
+
+    1433: {
+        "Service": "Microsoft SQL Server",
+        "Review": "Check whether database access is appropriately restricted."
+    },
+
+    3306: {
+        "Service": "MySQL",
+        "Review": "Check whether database access is appropriately restricted."
+    },
+
+    3389: {
+        "Service": "Remote Desktop Protocol (RDP)",
+        "Review": "Check whether remote desktop access is required and restricted."
+    },
+
+    5432: {
+        "Service": "PostgreSQL",
+        "Review": "Check whether database access is appropriately restricted."
+    },
+
+    5900: {
+        "Service": "VNC",
+        "Review": "Check whether remote desktop access is required and restricted."
+    },
+
+    8080: {
+        "Service": "Alternative HTTP service",
+        "Review": "Check which application is using this port."
+    }
+
+}
+
+
+
+
 # ============================================================
 # RUN SECURITY CHECKS
 # ============================================================
@@ -301,6 +369,24 @@ def run_security_checks():
 
 
             # =================================================
+            # IDENTIFY COMMON PORT SERVICE
+            # =================================================
+
+            port_number = connection.laddr.port
+
+            port_information = COMMON_PORTS.get(
+                port_number,
+                {
+                    "Service": "Unlisted service",
+                    "Review": (
+                        "Review the process and determine "
+                        "whether this port is required."
+                    )
+                }
+            )
+
+
+            # =================================================
             # STORE LISTENING PORT
             # =================================================
 
@@ -308,8 +394,14 @@ def run_security_checks():
 
                 "Address": (
                     f"{address}:"
-                    f"{connection.laddr.port}"
+                    f"{port_number}"
                 ),
+
+                "Port": port_number,
+
+                "Service": port_information["Service"],
+
+                "Review": port_information["Review"],
 
                 "Process": process_name,
 
