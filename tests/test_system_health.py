@@ -170,8 +170,8 @@ def test_firewall_health_inactive():
 # Verifies that non-administrator users are considered
 # Healthy.
 #
-# It also verifies that network-exposed ports generate a
-# Warning.
+# It also verifies that network-bound listeners generate a
+# Warning and include detailed information for investigation.
 # ============================================================
 
 def test_security_health():
@@ -184,6 +184,9 @@ def test_security_health():
 
             {
                 "Address": "0.0.0.0:80",
+                "Port": 80,
+                "Service": "HTTP",
+                "Review": "Check whether HTTP access is required.",
                 "Process": "TestProcess",
                 "PID": 1234,
                 "Exposure": "Network"
@@ -202,9 +205,88 @@ def test_security_health():
         == "Healthy"
     )
 
+    # ========================================================
+    # VERIFY NETWORK EXPOSURE WARNING
+    # ========================================================
+
     assert (
         result["Network Exposed Ports"]
-        == "Warning - 1 exposed"
+        == (
+            "Warning - 1 unique network-bound "
+            "listener(s) require review"
+        )
+    )
+
+
+    # ========================================================
+    # VERIFY DETAILED PORT FINDINGS
+    # ========================================================
+
+    assert (
+        result["Network Exposed Port Findings"]
+        == [
+            "Review: HTTP "
+            "(Address: 0.0.0.0:80; "
+            "Port: 80; Process: TestProcess) - "
+            "Check whether HTTP access is required."
+        ]
+    )
+
+# ============================================================
+# TEST ELEVATED PRIORITY FOR REMOTE ACCESS PORTS
+# ============================================================
+# Verifies that Remote Desktop Protocol (RDP) receives
+# elevated review priority when listening on a network
+# address.
+#
+# This flags the listener for closer investigation without
+# assuming that its presence confirms a security weakness.
+# ============================================================
+
+def test_security_health_elevated_remote_access_priority():
+
+    security_information = {
+
+        "Administrator Privileges": "No",
+
+        "Listening Ports": [
+
+            {
+                "Address": "0.0.0.0:3389",
+                "Port": 3389,
+                "Service": "Remote Desktop Protocol",
+                "Review": "Check whether remote access is required.",
+                "Process": "TestProcess",
+                "PID": 1234,
+                "Exposure": "Network"
+            }
+
+        ]
+
+    }
+
+
+    # ========================================================
+    # RUN SECURITY HEALTH CHECK
+    # ========================================================
+
+    result = check_security_health(
+        security_information
+    )
+
+
+    # ========================================================
+    # VERIFY ELEVATED PRIORITY
+    # ========================================================
+
+    assert (
+        result["Network Exposed Port Findings"]
+        == [
+            "Elevated review: Remote Desktop Protocol "
+            "(Address: 0.0.0.0:3389; "
+            "Port: 3389; Process: TestProcess) - "
+            "Check whether remote access is required."
+        ]
     )
 
 

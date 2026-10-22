@@ -1003,11 +1003,103 @@ while choice != "11":
             )
 
 
+            # ------------------------------------------------
+            # DISPLAY SECURITY HEALTH RESULTS
+            # ------------------------------------------------
+            # Display detailed port findings separately so
+            # that each item is easy to read and investigate.
+            # ------------------------------------------------
+
             for check, status in security_results.items():
 
-                print(
-                    f"{check}: {status}"
-                )
+                # --------------------------------------------
+                # DISPLAY DETAILED PORT FINDINGS
+                # --------------------------------------------
+
+                if (
+                    check == "Network Exposed Port Findings"
+                    and isinstance(status, list)
+                ):
+
+                    print(
+                        f"{check}:"
+                    )
+
+                    for index, finding in enumerate(
+                        status,
+                        start=1
+                    ):
+
+                        # ------------------------------------
+                        # EXTRACT FINDING DETAILS
+                        # ------------------------------------
+
+                        priority, details = finding.split(
+                            ": ",
+                            1
+                        )
+
+                        service_name, details = details.split(
+                            " (Address: ",
+                            1
+                        )
+
+                        address, details = details.split(
+                            "; Port: ",
+                            1
+                        )
+
+                        port_number, details = details.split(
+                            "; Process: ",
+                            1
+                        )
+
+                        process_name, recommendation = details.split(
+                            ") - ",
+                            1
+                        )
+
+
+                        # ------------------------------------
+                        # PRINT FORMATTED FINDING
+                        # ------------------------------------
+
+                        print()
+
+                        print(
+                            f"  {index}. Priority: {priority}"
+                        )
+
+                        print(
+                            f"     Service: {service_name}"
+                        )
+
+                        print(
+                            f"     Address: {address}"
+                        )
+
+                        print(
+                            f"     Port: {port_number}"
+                        )
+
+                        print(
+                            f"     Process: {process_name}"
+                        )
+
+                        print(
+                            f"     Recommendation: {recommendation}"
+                        )
+
+
+                # --------------------------------------------
+                # DISPLAY OTHER SECURITY HEALTH RESULTS
+                # --------------------------------------------
+
+                else:
+
+                    print(
+                        f"{check}: {status}"
+                    )
 
 
             # ------------------------------------------------

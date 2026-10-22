@@ -138,6 +138,113 @@ def write_report_data(
 
 
             # ------------------------------------------------
+            # FORMAT NETWORK EXPOSED PORT FINDINGS
+            # ------------------------------------------------
+            # Give each network-bound listener a numbered entry.
+            #
+            # Display the priority, service, address, port,
+            # process and recommendation on separate lines.
+            # ------------------------------------------------
+
+            if (
+                key == "Network Exposed Port Findings"
+                and isinstance(value, list)
+            ):
+
+                report.write(
+                    f"{key}:\n"
+                )
+
+                for index, finding in enumerate(
+                    value,
+                    start=1
+                ):
+
+                    # ----------------------------------------
+                    # EXTRACT FINDING DETAILS
+                    # ----------------------------------------
+
+                    try:
+
+                        priority, details = finding.split(
+                            ": ",
+                            1
+                        )
+
+                        service_name, details = details.split(
+                            " (Address: ",
+                            1
+                        )
+
+                        address, details = details.split(
+                            "; Port: ",
+                            1
+                        )
+
+                        port_number, details = details.split(
+                            "; Process: ",
+                            1
+                        )
+
+                        process_name, recommendation = details.split(
+                            ") - ",
+                            1
+                        )
+
+
+                    # ----------------------------------------
+                    # HANDLE UNEXPECTED FINDING FORMATS
+                    # ----------------------------------------
+                    # Preserve the original finding if its
+                    # format cannot be parsed successfully.
+                    # ----------------------------------------
+
+                    except (AttributeError, ValueError):
+
+                        report.write(
+                            f"{index}. {finding}\n"
+                        )
+
+                        continue
+
+
+                    # ----------------------------------------
+                    # WRITE FORMATTED FINDING
+                    # ----------------------------------------
+
+                    report.write(
+                        f"\n  {index}. Priority: {priority}\n"
+                    )
+
+                    report.write(
+                        f"     Service: {service_name}\n"
+                    )
+
+                    report.write(
+                        f"     Address: {address}\n"
+                    )
+
+                    report.write(
+                        f"     Port: {port_number}\n"
+                    )
+
+                    report.write(
+                        f"     Process: {process_name}\n"
+                    )
+
+                    report.write(
+                        f"     Recommendation: {recommendation}\n"
+                    )
+
+
+                report.write(
+                    "\n"
+                )
+
+                continue
+
+
+            # ------------------------------------------------
             # NESTED DICTIONARY OR LIST
             # ------------------------------------------------
             # If a value contains another dictionary or list,

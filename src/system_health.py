@@ -297,8 +297,18 @@ def check_security_health(security_information):
             ] = "Warning"
 
 
+
     # ========================================================
     # LISTENING PORTS
+    # ========================================================
+    # Review listening ports identified by the security module.
+    #
+    # Network-bound listeners are flagged for investigation.
+    # Remote access services receive additional attention because
+    # they may provide access to the computer from other devices.
+    #
+    # A listening address alone does not confirm that a service
+    # is reachable or vulnerable.
     # ========================================================
 
     listening_ports = security_information.get(
@@ -309,10 +319,14 @@ def check_security_health(security_information):
 
     network_exposed = 0
 
+    port_findings = []
+
 
     # --------------------------------------------------------
-    # Handle unexpected error strings returned by the security
-    # module.
+    # HANDLE LISTENING PORT INFORMATION
+    # --------------------------------------------------------
+    # Check that the listening-port data is a list and that each
+    # entry is a dictionary before accessing its information.
     # --------------------------------------------------------
 
     if isinstance(
@@ -330,16 +344,109 @@ def check_security_health(security_information):
                 continue
 
 
+            # ------------------------------------------------
+            # IDENTIFY NETWORK-BOUND LISTENERS
+            # ------------------------------------------------
+
             if (
                 port.get("Exposure")
-                == "Network"
+                != "Network"
             ):
 
-                network_exposed += 1
+                continue
+
+
+            network_exposed += 1
+
+
+        
+            # ------------------------------------------------
+            # COLLECT DETAILS FOR SECURITY REVIEW
+            # ------------------------------------------------
+            # Reuse the service and review information already
+            # collected by security_checks.py.
+            # ------------------------------------------------
+
+            address = port.get(
+                "Address",
+                "Unknown address"
+            )
+
+            port_number = port.get(
+                "Port",
+                "Unknown"
+            )
+
+            service_name = port.get(
+                "Service",
+                "Unlisted service"
+            )
+
+            process_name = port.get(
+                "Process",
+                "Unknown process"
+            )
+
+            review_recommendation = port.get(
+                "Review",
+                "Investigate whether this listener is required."
+            )
+
+
+            # ------------------------------------------------
+            # PRIORITISE REMOTE ACCESS SERVICES
+            # ------------------------------------------------
+            # RDP and VNC provide remote-access functionality.
+            # Flag them for closer review without assuming that
+            # their presence confirms a security weakness.
+            # ------------------------------------------------
+
+            if port_number in [3389, 5900]:
+
+                finding_priority = "Elevated review"
+
+
+            else:
+
+                finding_priority = "Review"
+
+
+            # ------------------------------------------------
+            # STORE THE FINDING
+            # ------------------------------------------------
+            # Include the listening address so that distinct
+            # listeners can be investigated separately.
+            # ------------------------------------------------
+
+            finding = (
+                f"{finding_priority}: "
+                f"{service_name} "
+                f"(Address: {address}; "
+                f"Port: {port_number}; "
+                f"Process: {process_name}) - "
+                f"{review_recommendation}"
+            )
+
+
+            # ------------------------------------------------
+            # REMOVE EXACT DUPLICATE FINDINGS
+            # ------------------------------------------------
+            # Preserve distinct findings while preventing the
+            # same complete finding from appearing repeatedly.
+            # ------------------------------------------------
+
+            if finding not in port_findings:
+
+                port_findings.append(
+                    finding
+                )
 
 
     # ========================================================
     # DETERMINE NETWORK EXPOSURE HEALTH
+    # ========================================================
+    # Report the number of network-bound listeners and provide
+    # the details needed to investigate them.
     # ========================================================
 
     if network_exposed == 0:
@@ -355,8 +462,20 @@ def check_security_health(security_information):
             "Network Exposed Ports"
         ] = (
             f"Warning - "
-            f"{network_exposed} exposed"
+            f"{len(port_findings)} unique network-bound "
+            f"listener(s) require review"
         )
+
+
+        # ----------------------------------------------------
+        # INCLUDE DETAILED PORT FINDINGS
+        # ----------------------------------------------------
+
+        security_health[
+            "Network Exposed Port Findings"
+        ] = port_findings
+
+
 
 
     return security_health
