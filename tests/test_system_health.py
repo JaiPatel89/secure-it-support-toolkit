@@ -226,6 +226,7 @@ def test_security_health():
         result["Network Exposed Port Findings"]
         == [
             "Review: HTTP "
+            "[Category: Unclassified] "
             "(Address: 0.0.0.0:80; "
             "Port: 80; Process: TestProcess) - "
             "Check whether HTTP access is required."
@@ -283,6 +284,7 @@ def test_security_health_elevated_remote_access_priority():
         result["Network Exposed Port Findings"]
         == [
             "Elevated review: Remote Desktop Protocol "
+            "[Category: Unclassified] "
             "(Address: 0.0.0.0:3389; "
             "Port: 3389; Process: TestProcess) - "
             "Check whether remote access is required."

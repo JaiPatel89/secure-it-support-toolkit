@@ -382,6 +382,11 @@ def check_security_health(security_information):
                 "Unlisted service"
             )
 
+            category = port.get(
+                "Category",
+                "Unclassified"
+            )
+
             process_name = port.get(
                 "Process",
                 "Unknown process"
@@ -418,14 +423,17 @@ def check_security_health(security_information):
             # listeners can be investigated separately.
             # ------------------------------------------------
 
+    
             finding = (
                 f"{finding_priority}: "
                 f"{service_name} "
+                f"[Category: {category}] "
                 f"(Address: {address}; "
                 f"Port: {port_number}; "
                 f"Process: {process_name}) - "
                 f"{review_recommendation}"
             )
+
 
 
             # ------------------------------------------------

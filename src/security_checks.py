@@ -77,55 +77,76 @@ import psutil
 # is not automatically a security vulnerability.
 # ============================================================
 
+
+# ============================================================
+# COMMON PORT DEFINITIONS
+# ============================================================
+# Identifies common listening ports and classifies their
+# services to support more context-aware security assessments.
+#
+# Categories describe the service's general purpose. They do
+# not, by themselves, indicate whether a listener is unsafe.
+# ============================================================
+
 COMMON_PORTS = {
 
     22: {
         "Service": "SSH",
+        "Category": "Remote Access",
         "Review": "Check whether remote command-line access is required."
     },
 
     135: {
         "Service": "Windows RPC",
+        "Category": "Windows Service",
         "Review": "Check whether the service needs network access."
     },
 
     139: {
         "Service": "NetBIOS Session Service",
+        "Category": "File Sharing",
         "Review": "Check whether legacy file and printer sharing is required."
     },
 
     445: {
         "Service": "SMB",
+        "Category": "File Sharing",
         "Review": "Check file-sharing requirements and network restrictions."
     },
 
     1433: {
         "Service": "Microsoft SQL Server",
+        "Category": "Database",
         "Review": "Check whether database access is appropriately restricted."
     },
 
     3306: {
         "Service": "MySQL",
+        "Category": "Database",
         "Review": "Check whether database access is appropriately restricted."
     },
 
     3389: {
         "Service": "Remote Desktop Protocol (RDP)",
+        "Category": "Remote Access",
         "Review": "Check whether remote desktop access is required and restricted."
     },
 
     5432: {
         "Service": "PostgreSQL",
+        "Category": "Database",
         "Review": "Check whether database access is appropriately restricted."
     },
 
     5900: {
         "Service": "VNC",
+        "Category": "Remote Access",
         "Review": "Check whether remote desktop access is required and restricted."
     },
 
     8080: {
         "Service": "Alternative HTTP service",
+        "Category": "Web Service",
         "Review": "Check which application is using this port."
     }
 
@@ -376,15 +397,15 @@ def run_security_checks():
 
             port_information = COMMON_PORTS.get(
                 port_number,
-                {
+            {
                     "Service": "Unlisted service",
+                    "Category": "Unclassified",
                     "Review": (
                         "Review the process and determine "
                         "whether this port is required."
-                    )
-                }
+                )
+            }
             )
-
 
             # =================================================
             # STORE LISTENING PORT
@@ -400,6 +421,8 @@ def run_security_checks():
                 "Port": port_number,
 
                 "Service": port_information["Service"],
+
+                "Category": port_information["Category"],
 
                 "Review": port_information["Review"],
 
