@@ -430,7 +430,15 @@ def run_security_checks():
 
                 "PID": process_id,
 
-                "Exposure": exposure
+                "Exposure": exposure,
+
+                "Binding Type": (
+                    "Wildcard"
+                    if address in ["0.0.0.0", "::"]
+                    else "Loopback"
+                    if address in ["127.0.0.1", "::1"]
+                    else "Specific Interface"
+                )
 
             })
 
