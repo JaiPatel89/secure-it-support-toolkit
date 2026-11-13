@@ -351,6 +351,85 @@ def test_wildcard_listening_port(monkeypatch):
     assert ports[0]["Binding Type"] == "Wildcard"
 
 
+
+# ============================================================
+# TEST SPECIFIC INTERFACE LISTENING PORT
+# ============================================================
+# Verifies that a specific-interface listening service is
+# correctly identified as "Network" with a
+# "Specific Interface" binding type.
+# ============================================================
+
+def test_specific_interface_listening_port(monkeypatch):
+
+    monkeypatch.setattr(
+        "platform.system",
+        lambda: "Windows"
+    )
+
+
+    monkeypatch.setattr(
+        ctypes.windll.shell32,
+        "IsUserAnAdmin",
+        lambda: 0
+    )
+
+
+    # --------------------------------------------------------
+    # Create a fake listening connection.
+    # --------------------------------------------------------
+
+    fake_connection = SimpleNamespace(
+
+        status=psutil.CONN_LISTEN,
+
+        laddr=SimpleNamespace(
+            ip="192.168.50.20",
+            port=8080
+        ),
+
+        pid=1234
+    )
+
+
+    monkeypatch.setattr(
+        psutil,
+        "net_connections",
+        lambda kind=None: [fake_connection]
+    )
+
+
+    # --------------------------------------------------------
+    # Mock the process associated with the port.
+    # --------------------------------------------------------
+
+    fake_process = SimpleNamespace(
+        name=lambda: "python.exe"
+    )
+
+
+    monkeypatch.setattr(
+        psutil,
+        "Process",
+        lambda pid: fake_process
+    )
+
+
+    result = run_security_checks()
+
+
+    ports = result["Listening Ports"]
+
+
+    assert len(ports) == 1
+
+    assert ports[0]["Address"] == "192.168.50.20:8080"
+    assert ports[0]["Process"] == "python.exe"
+    assert ports[0]["PID"] == 1234
+    assert ports[0]["Exposure"] == "Network"
+    assert ports[0]["Binding Type"] == "Specific Interface"
+
+
 # ============================================================
 # TEST NETWORK EXPOSED PORT
 # ============================================================
