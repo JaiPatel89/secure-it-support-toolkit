@@ -321,6 +321,20 @@ def check_security_health(security_information):
 
     port_findings = []
 
+# --------------------------------------------------------
+# COUNT NETWORK BINDING TYPES
+# --------------------------------------------------------
+# Track how many network-bound listeners use each binding
+# type to provide a useful summary of network exposure.
+# --------------------------------------------------------
+
+    binding_counts = {
+        "Wildcard": 0,
+        "Specific Interface": 0,
+        "Loopback": 0,
+        "Unknown": 0
+    }  
+
 
     # --------------------------------------------------------
     # HANDLE LISTENING PORT INFORMATION
@@ -391,6 +405,18 @@ def check_security_health(security_information):
                 "Binding Type",
                 "Unknown"
             )
+
+            # ------------------------------------------------
+            # UPDATE BINDING TYPE COUNTS
+            # ------------------------------------------------
+
+            if binding_type in binding_counts:
+
+                binding_counts[binding_type] += 1
+
+            else:
+
+                binding_counts["Unknown"] += 1
 
             process_name = port.get(
                 "Process",
@@ -488,6 +514,17 @@ def check_security_health(security_information):
         security_health[
             "Network Exposed Port Findings"
         ] = port_findings
+
+        # ----------------------------------------------------
+        # INCLUDE NETWORK BINDING SUMMARY
+        # ----------------------------------------------------
+        # Provide a breakdown of network-bound listeners by
+        # their binding type.
+        # ----------------------------------------------------
+
+        security_health[
+            "Network Binding Summary"
+        ] = binding_counts
 
 
 
