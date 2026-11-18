@@ -483,3 +483,62 @@ def test_overall_health_critical():
     )
 
     assert result == "Critical"
+
+
+# ============================================================
+# TEST NETWORK BINDING SUMMARY
+# ============================================================
+# Verifies that network-bound listeners are correctly counted
+# according to their binding type.
+# ============================================================
+
+def test_network_binding_summary():
+
+    security_information = {
+
+        "Listening Ports": [
+
+            {
+                "Address": "0.0.0.0:445",
+                "Port": 445,
+                "Exposure": "Network",
+                "Binding Type": "Wildcard"
+            },
+
+            {
+                "Address": "192.168.50.20:8080",
+                "Port": 8080,
+                "Exposure": "Network",
+                "Binding Type": "Specific Interface"
+            },
+
+            {
+                "Address": "192.168.50.20:3389",
+                "Port": 3389,
+                "Exposure": "Network",
+                "Binding Type": "Specific Interface"
+            }
+
+        ]
+
+    }
+
+
+    result = check_security_health(
+        security_information
+    )
+
+
+    # ========================================================
+    # VERIFY BINDING TYPE COUNTS
+    # ========================================================
+
+    assert (
+        result["Network Binding Summary"]
+        == {
+            "Wildcard": 1,
+            "Specific Interface": 2,
+            "Loopback": 0,
+            "Unknown": 0
+        }
+    )
