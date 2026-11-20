@@ -225,7 +225,9 @@ def test_security_health():
     assert (
         result["Network Exposed Port Findings"]
         == [
-            "Review: HTTP "
+            "Review: "
+            "[Risk: Medium] "
+            "HTTP "
             "[Category: Unclassified] "
             "[Binding: Unknown] "
             "(Address: 0.0.0.0:80; "
@@ -284,7 +286,9 @@ def test_security_health_elevated_remote_access_priority():
     assert (
         result["Network Exposed Port Findings"]
         == [
-            "Elevated review: Remote Desktop Protocol "
+            "Elevated review: "
+            "[Risk: High] "
+            "Remote Desktop Protocol "
             "[Category: Unclassified] "
             "[Binding: Unknown] "
             "(Address: 0.0.0.0:3389; "

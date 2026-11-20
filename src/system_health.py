@@ -440,11 +440,13 @@ def check_security_health(security_information):
             if port_number in [3389, 5900]:
 
                 finding_priority = "Elevated review"
+                risk_level = "High"
 
 
             else:
 
                 finding_priority = "Review"
+                risk_level = "Medium"
 
 
             # ------------------------------------------------
@@ -457,6 +459,7 @@ def check_security_health(security_information):
     
             finding = (
                 f"{finding_priority}: "
+                f"[Risk: {risk_level}] "
                 f"{service_name} "
                 f"[Category: {category}] "
                 f"[Binding: {binding_type}] "
