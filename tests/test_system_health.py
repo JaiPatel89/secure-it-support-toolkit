@@ -299,6 +299,66 @@ def test_security_health_elevated_remote_access_priority():
 
 
 # ============================================================
+# TEST HIGH RISK CLASSIFICATION FOR VNC
+# ============================================================
+# Verifies that Virtual Network Computing (VNC) receives
+# elevated review priority and a High risk classification
+# when listening on a network address.
+# ============================================================
+
+def test_security_health_vnc_high_risk():
+
+    security_information = {
+
+        "Administrator Privileges": "No",
+
+        "Listening Ports": [
+
+            {
+                "Address": "0.0.0.0:5900",
+                "Port": 5900,
+                "Service": "VNC",
+                "Review": "Check whether remote access is required.",
+                "Process": "TestProcess",
+                "PID": 1234,
+                "Exposure": "Network"
+            }
+
+        ]
+
+    }
+
+
+    # ========================================================
+    # RUN SECURITY HEALTH CHECK
+    # ========================================================
+
+    result = check_security_health(
+        security_information
+    )
+
+
+    # ========================================================
+    # VERIFY HIGH RISK CLASSIFICATION
+    # ========================================================
+
+    assert (
+        result["Network Exposed Port Findings"]
+        == [
+            "Elevated review: "
+            "[Risk: High] "
+            "VNC "
+            "[Category: Unclassified] "
+            "[Binding: Unknown] "
+            "(Address: 0.0.0.0:5900; "
+            "Port: 5900; Process: TestProcess) - "
+            "Check whether remote access is required."
+        ]
+    )
+
+
+
+# ============================================================
 # TEST SECURITY HEALTH - NO EXPOSED PORTS
 # ============================================================
 # Verifies that no network-exposed ports are considered
