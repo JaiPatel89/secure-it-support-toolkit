@@ -328,6 +328,35 @@ def test_security_health_vnc_high_risk():
 
     }
 
+# ============================================================
+# TEST MEDIUM RISK CLASSIFICATION FOR NETWORK PORTS
+# ============================================================
+# Verifies that ordinary network-exposed services receive
+# a Medium risk classification rather than High.
+# ============================================================
+
+def test_security_health_medium_risk_classification():
+
+    security_information = {
+
+        "Administrator Privileges": "No",
+
+        "Listening Ports": [
+
+            {
+                "Address": "0.0.0.0:8080",
+                "Port": 8080,
+                "Service": "Alternative HTTP service",
+                "Review": "Check whether this service is required.",
+                "Process": "TestProcess",
+                "PID": 1234,
+                "Exposure": "Network"
+            }
+
+        ]
+
+    }
+
 
     # ========================================================
     # RUN SECURITY HEALTH CHECK
@@ -339,20 +368,20 @@ def test_security_health_vnc_high_risk():
 
 
     # ========================================================
-    # VERIFY HIGH RISK CLASSIFICATION
+    # VERIFY MEDIUM RISK CLASSIFICATION
     # ========================================================
 
     assert (
         result["Network Exposed Port Findings"]
         == [
-            "Elevated review: "
-            "[Risk: High] "
-            "VNC "
+            "Review: "
+            "[Risk: Medium] "
+            "Alternative HTTP service "
             "[Category: Unclassified] "
             "[Binding: Unknown] "
-            "(Address: 0.0.0.0:5900; "
-            "Port: 5900; Process: TestProcess) - "
-            "Check whether remote access is required."
+            "(Address: 0.0.0.0:8080; "
+            "Port: 8080; Process: TestProcess) - "
+            "Check whether this service is required."
         ]
     )
 
