@@ -89,6 +89,43 @@ def format_value(key, value):
 
 
 # ============================================================
+# COUNT SECURITY RISK LEVELS
+# ============================================================
+# Counts High and Medium risk findings from the security
+# information collected by the diagnostic modules.
+#
+# This will allow the report generator to provide a quick
+# summary of security concerns.
+# ============================================================
+
+def count_security_risks(findings):
+
+    risk_counts = {
+        "High": 0,
+        "Medium": 0
+    }
+
+
+    # ========================================================
+    # CHECK EACH SECURITY FINDING
+    # ========================================================
+
+    for finding in findings:
+
+        if "[Risk: High]" in finding:
+
+            risk_counts["High"] += 1
+
+
+        elif "[Risk: Medium]" in finding:
+
+            risk_counts["Medium"] += 1
+
+
+    return risk_counts
+
+
+# ============================================================
 # WRITE REPORT DATA
 # ============================================================
 # Recursively processes dictionaries and lists and writes their

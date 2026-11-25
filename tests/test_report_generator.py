@@ -48,6 +48,7 @@ sys.path.insert(
 # ============================================================
 
 from report_generator import (
+    count_security_risks,
     format_value,
     write_report_data,
     generate_report
@@ -93,6 +94,39 @@ def test_format_value_normal_value():
     )
 
     assert result == "Healthy"
+
+
+# ============================================================
+# TEST COUNT SECURITY RISKS
+# ============================================================
+# Verifies that High and Medium risk findings are counted
+# correctly.
+# ============================================================
+
+def test_count_security_risks():
+
+    findings = [
+
+        "Review: [Risk: Medium] Alternative HTTP service",
+
+        "Elevated review: [Risk: High] Remote Desktop Protocol",
+
+        "Elevated review: [Risk: High] VNC",
+
+        "Review: [Risk: Medium] SSH"
+
+    ]
+
+
+    result = count_security_risks(
+        findings
+    )
+
+
+    assert result == {
+        "High": 2,
+        "Medium": 2
+    }
 
 
 # ============================================================
