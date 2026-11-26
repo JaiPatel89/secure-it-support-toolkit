@@ -264,6 +264,50 @@ def test_write_report_data_nested():
     assert "Overall System Health: Warning" in output
 
 
+
+# ============================================================
+# TEST WRITE REPORT DATA - SECURITY RISK SUMMARY
+# ============================================================
+# Verifies that High and Medium risk counts are displayed
+# correctly before the individual network findings.
+# ============================================================
+
+def test_write_report_data_security_risk_summary():
+
+    information = {
+
+        "Network Exposed Port Findings": [
+
+            "Elevated review: [Risk: High] Remote Desktop Protocol",
+
+            "Review: [Risk: Medium] Alternative HTTP service",
+
+            "Elevated review: [Risk: High] VNC"
+
+        ]
+
+    }
+
+
+    from io import StringIO
+
+    report = StringIO()
+
+
+    write_report_data(
+        report,
+        information
+    )
+
+
+    output = report.getvalue()
+
+
+    assert "Security Risk Summary:" in output
+    assert "High Risk: 2" in output
+    assert "Medium Risk: 1" in output
+
+
 # ============================================================
 # TEST GENERATE REPORT
 # ============================================================

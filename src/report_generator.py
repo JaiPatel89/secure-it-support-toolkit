@@ -192,6 +192,31 @@ def write_report_data(
                     f"{key}:\n"
                 )
 
+                # ------------------------------------------------
+                # SECURITY RISK SUMMARY
+                # ------------------------------------------------
+                # Count the High and Medium risk findings before
+                # displaying the individual findings.
+                # ------------------------------------------------
+
+                risk_counts = count_security_risks(
+                    value
+                )
+
+
+                report.write(  
+                    "\n  Security Risk Summary:\n"
+                )
+
+                report.write(
+                    f"    High Risk: {risk_counts['High']}\n"
+                )
+
+
+                report.write(
+                    f"    Medium Risk: {risk_counts['Medium']}\n"
+                    )
+
                 for index, finding in enumerate(
                     value,
                     start=1
